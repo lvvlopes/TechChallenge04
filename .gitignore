@@ -1,0 +1,59 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model weights / large binaries (not versioned)
+*.pt
+*.onnx
+*.h5
+*.mp4
+*.wav
+*.mp3
+!data/samples/**/*.wav
+
+# Generated artifacts / outputs
+outputs/
+reports/
+*.log
+
+# Datasets sensíveis (NUNCA versionar dados reais de pacientes)
+data/raw/
+data/private/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
