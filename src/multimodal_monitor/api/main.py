@@ -13,15 +13,26 @@ Execução: ``uvicorn multimodal_monitor.api.main:app --reload``
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..anomaly_detection.prescriptions import PrescriptionEvent
 from ..config import get_settings
 from ..integration.orchestrator import MonitoringInput, PatientMonitor
 from ..schemas import VitalSignReading
+from ..synthetic import (
+    SAMPLE_TRANSCRIPTS,
+    generate_pose_frames,
+    generate_prescriptions,
+    generate_vitals,
+)
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Monitoramento Multimodal de Pacientes",
@@ -30,6 +41,20 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+
+if _STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def dashboard_root() -> FileResponse:
+    """Serve o dashboard interativo na raiz."""
+    return FileResponse(_STATIC_DIR / "dashboard.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "dashboard.html")
 
 
 # --------------------------------------------------------------------------- #
@@ -161,5 +186,97 @@ def monitor(req: MonitorRequest) -> dict:
                 "findings": [f.model_dump(mode="json") for f in r.findings],
             }
             for r in results
+        },
+    }
+
+
+class DemoRequest(BaseModel):
+    """Parâmetros do ciclo de demonstração com dados sintéticos."""
+
+    scenario: str = Field(default="critical", description="critical | stable")
+    patient_id: str = Field(default="PAC-001")
+    seed: int = 42
+
+
+@app.post("/demo/run")
+def demo_run(req: DemoRequest) -> dict:
+    """Executa um ciclo multimodal com dados sintéticos.
+
+    Usado pelo dashboard para gerar demonstrações reprodutíveis. Retorna, além
+    do relatório multimodal, uma amostra dos sinais vitais e da transcrição
+    para renderização no cliente.
+    """
+    inject = req.scenario.lower() == "critical"
+    monitor = _get_monitor()
+
+    vitals_df = generate_vitals(seed=req.seed, inject_anomalies=inject)
+    prescriptions = generate_prescriptions(seed=req.seed, inject_anomalies=inject)
+    pose_frames = generate_pose_frames(seed=req.seed, inject_anomalies=inject)
+    transcript = SAMPLE_TRANSCRIPTS["critico" if inject else "estavel"]
+
+    report = monitor.run(
+        MonitoringInput(
+            patient_id=req.patient_id,
+            vitals=vitals_df,
+            prescriptions=prescriptions,
+            pose_frames=pose_frames,
+        )
+    )
+
+    # análise textual (equivale ao STT em modo mock, sem I/O de arquivo)
+    insights = monitor.audio_pipeline.text_analytics.analyze(transcript)
+    from ..schemas import Finding, Modality, ModalityResult
+
+    audio_result = ModalityResult(
+        modality=Modality.AUDIO,
+        findings=[
+            Finding(
+                modality=Modality.AUDIO,
+                severity=sev,
+                description=f"Termo crítico mencionado: '{term}'",
+                score=0.6,
+                metadata={"term": term},
+            )
+            for term, sev in insights.critical_terms
+        ],
+        summary=(
+            f"Sentimento: {insights.sentiment} "
+            f"({insights.sentiment_score:+.2f}); "
+            f"termos críticos: {len(insights.critical_terms)}"
+        ),
+    )
+    all_results = list(report.modality_results) + [audio_result]
+    risk_score, alert = monitor.fusion.fuse(req.patient_id, all_results)
+
+    return {
+        "patient_id": req.patient_id,
+        "scenario": req.scenario,
+        "generated_at": datetime.now().isoformat(),
+        "risk_score": risk_score,
+        "alert": alert.model_dump(mode="json") if alert else None,
+        "modalities": {
+            r.modality.value: {
+                "risk_score": r.risk_score,
+                "summary": r.summary,
+                "findings": [f.model_dump(mode="json") for f in r.findings],
+            }
+            for r in all_results
+        },
+        "vitals_series": {
+            "timestamps": [ts.isoformat() for ts in vitals_df["timestamp"]],
+            "heart_rate": vitals_df["heart_rate"].tolist(),
+            "systolic_bp": vitals_df["systolic_bp"].tolist(),
+            "diastolic_bp": vitals_df["diastolic_bp"].tolist(),
+            "spo2": vitals_df["spo2"].tolist(),
+            "respiratory_rate": vitals_df["respiratory_rate"].tolist(),
+            "temperature": vitals_df["temperature"].tolist(),
+        },
+        "audio": {
+            "transcript": transcript,
+            "sentiment": insights.sentiment,
+            "sentiment_score": insights.sentiment_score,
+            "critical_terms": [
+                {"term": t, "severity": s.value} for t, s in insights.critical_terms
+            ],
         },
     }
