@@ -97,12 +97,18 @@ A demo gera dados sintéticos com anomalias nas 4 fontes, executa o pipeline
 multimodal e imprime o alerta clínico resultante (score de risco = 1.00,
 severidade CRÍTICA).
 
-### 5. Subir a API
+### 5. Subir a API + dashboard
 
 ```bash
 uvicorn multimodal_monitor.api.main:app --reload --app-dir src
-# docs interativas em  http://127.0.0.1:8000/docs
 ```
+
+- **Dashboard interativo**: <http://127.0.0.1:8000/> — estação clínica web
+  com gauge de risco multimodal, sparklines de sinais vitais, feed de
+  achados filtrável e transcrição da consulta com termos críticos realçados.
+  Botão *Executar ciclo* dispara `/demo/run` e alterna entre os cenários
+  **crítico** e **estável**.
+- **Docs interativas da API** (Swagger): <http://127.0.0.1:8000/docs>
 
 Exemplo de chamada:
 
