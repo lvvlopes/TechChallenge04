@@ -84,6 +84,9 @@ class ModalityResult(BaseModel):
 
         Combina a severidade e a confiança dos achados, dando mais peso ao
         achado mais grave e amortecendo os demais (evita saturação por volume).
+        Cap adicional: o score da modalidade não pode exceder o peso da
+        severidade máxima presente — clinicamente, um conjunto só de MEDIUMs
+        não deve escalar até CRÍTICO por acúmulo.
         """
         if not self.findings:
             return 0.0
@@ -95,7 +98,8 @@ class ModalityResult(BaseModel):
         total = 0.0
         for i, c in enumerate(contributions):
             total += c * (0.5**i)
-        return float(min(total, 1.0))
+        cap = max(self.max_severity.weight, 0.15)
+        return float(min(total, cap))
 
 
 class Alert(BaseModel):

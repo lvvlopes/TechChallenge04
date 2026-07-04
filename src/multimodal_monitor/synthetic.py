@@ -32,12 +32,13 @@ def generate_vitals(
     t0 = datetime.now(timezone.utc) - timedelta(seconds=n * interval_seconds)
     timestamps = [t0 + timedelta(seconds=i * interval_seconds) for i in range(n)]
 
-    hr = rng.normal(75, 4, n)
-    sbp = rng.normal(120, 6, n)
-    dbp = rng.normal(78, 4, n)
-    spo2 = rng.normal(97, 0.8, n)
-    rr = rng.normal(16, 1.5, n)
-    temp = rng.normal(36.6, 0.2, n)
+    # Ruído calibrado para variabilidade fisiológica típica de leito de UTI
+    hr = rng.normal(75, 2.5, n)
+    sbp = rng.normal(120, 4, n)
+    dbp = rng.normal(78, 3, n)
+    spo2 = rng.normal(97, 0.5, n)
+    rr = rng.normal(16, 1.0, n)
+    temp = rng.normal(36.6, 0.15, n)
 
     if inject_anomalies and n >= 200:
         # Evento 1: dessaturação progressiva de SpO2 (crise respiratória)
@@ -67,19 +68,29 @@ def generate_prescriptions(
 ) -> list[PrescriptionEvent]:
     """Gera uma evolução de prescrições com anomalias plantadas."""
     t0 = datetime.now(timezone.utc) - timedelta(hours=12)
+    # base sem interações conhecidas entre si
     events = [
-        PrescriptionEvent(timestamp=t0, drug="dipirona", dose_mg=1000),
+        PrescriptionEvent(timestamp=t0, drug="paracetamol", dose_mg=750),
         PrescriptionEvent(timestamp=t0 + timedelta(hours=2), drug="amoxicilina", dose_mg=500),
-        PrescriptionEvent(timestamp=t0 + timedelta(hours=4), drug="warfarina", dose_mg=5),
+        PrescriptionEvent(timestamp=t0 + timedelta(hours=4), drug="dipirona", dose_mg=1000),
     ]
     if inject_anomalies:
         # salto abrupto de dose de dipirona (1000 -> 3000, 3x)
         events.append(
             PrescriptionEvent(timestamp=t0 + timedelta(hours=6), drug="dipirona", dose_mg=3000)
         )
-        # interação medicamentosa: warfarina + ibuprofeno
+        # introduz warfarina e depois ibuprofeno → interação conhecida
         events.append(
-            PrescriptionEvent(timestamp=t0 + timedelta(hours=7), drug="ibuprofeno", dose_mg=600)
+            PrescriptionEvent(
+                timestamp=t0 + timedelta(hours=6, minutes=30),
+                drug="warfarina",
+                dose_mg=5,
+            )
+        )
+        events.append(
+            PrescriptionEvent(
+                timestamp=t0 + timedelta(hours=7), drug="ibuprofeno", dose_mg=600
+            )
         )
     return events
 

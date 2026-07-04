@@ -61,8 +61,8 @@ class VitalsAnomalyDetector:
         Tamanho da janela móvel (nº de leituras) para a linha de base.
     """
 
-    contamination: float = 0.02
-    zscore_threshold: float = 3.0
+    contamination: float = 0.01
+    zscore_threshold: float = 3.5
     window: int = 20
     _feature_columns: list[str] = field(default_factory=list, init=False)
 
@@ -192,17 +192,23 @@ class VitalsAnomalyDetector:
             return []
 
         model = IsolationForest(
-            contamination=self.contamination,
+            contamination="auto",
             random_state=42,
             n_estimators=200,
         )
-        labels = model.fit_predict(features.values)
+        model.fit(features.values)
         raw_scores = -model.score_samples(features.values)  # maior = mais anômalo
         norm = self._normalize(raw_scores)
 
+        # IsolationForest com contamination='auto' pode ser permissivo — usamos
+        # o limiar configurado (fração superior) para filtrar apenas os pontos
+        # mais fortemente atípicos, evitando falsos positivos em séries limpas.
+        cutoff = float(np.quantile(norm, 1.0 - self.contamination)) if len(norm) else 1.0
+        cutoff = max(cutoff, 0.85)
+
         findings: list[Finding] = []
-        for idx, (label, score) in enumerate(zip(labels, norm, strict=True)):
-            if label != -1:
+        for idx, score in enumerate(norm):
+            if score < cutoff:
                 continue
             snapshot = {c: float(features.iloc[idx][c]) for c in self._feature_columns}
             findings.append(

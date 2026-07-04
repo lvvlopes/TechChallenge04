@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     azure_language_endpoint: str = ""
 
     # --- Detecção de anomalias (RF03) ---
-    anomaly_contamination: float = Field(default=0.02, ge=0.0, le=0.5)
-    vitals_zscore_threshold: float = Field(default=3.0, gt=0.0)
+    anomaly_contamination: float = Field(default=0.01, ge=0.0, le=0.5)
+    vitals_zscore_threshold: float = Field(default=3.5, gt=0.0)
 
     # --- Alertas ---
     alert_channel: Literal["console", "file", "webhook"] = "console"
