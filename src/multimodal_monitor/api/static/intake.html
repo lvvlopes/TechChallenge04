@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multimodal Monitor · Captura Clínica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #fbfbfc;
+    --border: #e6e8ec;
+    --border-strong: #d5d9df;
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --accent: #0d9488;
+    --accent-2: #14b8a6;
+    --accent-soft: #ccfbf1;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --sev-info: #64748b;
+    --sev-low: #0891b2;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.04);
+    --shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Top bar */
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; color: white; font-weight: 700; font-size: 16px;
+    box-shadow: var(--shadow);
+  }
+  .brand-title { font-size: 15px; }
+  .brand-sub { font-size: 12px; color: var(--text-3); font-weight: 500; }
+  nav.tabs { display: inline-flex; padding: 3px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+  nav.tabs a {
+    padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 500;
+    color: var(--text-2); text-decoration: none;
+  }
+  nav.tabs a.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  /* Layout */
+  main {
+    padding: 24px 28px 60px; max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 380px; gap: 24px;
+  }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm);
+    margin-bottom: 18px;
+  }
+  .card > h3 {
+    margin: 0 0 16px; font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h3 .num {
+    display: grid; place-items: center; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  }
+
+  /* Form fields */
+  label {
+    display: block; font-size: 12px; font-weight: 500; color: var(--text-2);
+    margin-bottom: 4px;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); background: var(--panel);
+    font-family: inherit; font-size: 13.5px; color: var(--text);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  input:disabled, select:disabled, textarea:disabled {
+    background: var(--panel-2); color: var(--text-3);
+  }
+  textarea { min-height: 90px; resize: vertical; font-family: inherit; }
+
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: repeat(3, 1fr); }
+  .row-vitals { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 620px) {
+    .row-2, .row-3, .row-vitals { grid-template-columns: 1fr; }
+  }
+
+  .field-with-unit { position: relative; }
+  .field-with-unit .unit {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; color: var(--text-3); pointer-events: none;
+    background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--panel); color: var(--text);
+    transition: all .15s;
+  }
+  .btn:hover { background: var(--panel-2); border-color: var(--text-3); }
+  .btn-primary { background: var(--text); color: white; border-color: var(--text); }
+  .btn-primary:hover { background: #1e293b; }
+  .btn-accent { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-accent:hover { background: #0f766e; }
+  .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-ghost { background: transparent; border-color: var(--border); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+  /* Prescription rows */
+  .presc-list { display: flex; flex-direction: column; gap: 8px; }
+  .presc-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: end;
+  }
+  .presc-row .del { padding: 8px 10px; color: var(--danger); }
+  .presc-row .del:hover { background: var(--danger-soft); border-color: var(--danger-soft); }
+
+  /* Media capture */
+  .media-tabs { display: inline-flex; padding: 3px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; }
+  .media-tabs button {
+    border: 0; background: transparent; padding: 6px 14px;
+    font-size: 12.5px; font-weight: 500; color: var(--text-2);
+    border-radius: 6px; cursor: pointer;
+  }
+  .media-tabs button.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  .media-panel { display: none; }
+  .media-panel.active { display: block; }
+
+  .media-record {
+    padding: 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+    background: var(--panel-2);
+  }
+  .rec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .rec-status {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--text-2);
+  }
+  .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); }
+  .rec-dot.live { background: var(--danger); animation: rec-pulse 1.2s infinite; }
+  @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .rec-timer { font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-2); }
+
+  video.preview {
+    width: 100%; max-height: 260px; background: #000; border-radius: var(--radius-sm);
+    display: block; margin-top: 10px;
+  }
+  audio.preview { width: 100%; margin-top: 10px; }
+  .media-hint { font-size: 11.5px; color: var(--text-3); margin-top: 10px; line-height: 1.45; }
+
+  .file-drop {
+    padding: 22px; text-align: center; border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-sm); background: var(--panel-2); cursor: pointer;
+    transition: all .15s;
+  }
+  .file-drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .file-drop.has-file { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+  .file-drop svg { opacity: 0.55; margin-bottom: 8px; }
+  .file-drop .file-name { font-weight: 500; color: var(--text); }
+  .file-drop input[type="file"] { display: none; }
+
+  /* Submit bar */
+  .submit-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    position: sticky; bottom: 20px;
+  }
+  .submit-bar .meta { font-size: 12.5px; color: var(--text-3); }
+
+  /* Result panel */
+  aside.result-panel { align-self: start; position: sticky; top: 90px; }
+  .result-empty {
+    padding: 40px 20px; text-align: center; color: var(--text-3); font-size: 13px;
+  }
+  .result-empty svg { opacity: 0.4; margin-bottom: 12px; }
+  .score-hero {
+    padding: 22px; text-align: center; border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--panel-2) 0%, var(--panel) 100%);
+    border: 1px solid var(--border); margin-bottom: 14px;
+  }
+  .score-hero.sev-critical { background: linear-gradient(135deg, #fef2f2 0%, var(--panel) 100%); border-color: #fecaca; }
+  .score-hero.sev-high     { background: linear-gradient(135deg, #fff7ed 0%, var(--panel) 100%); border-color: #fed7aa; }
+  .score-hero.sev-medium   { background: linear-gradient(135deg, #fefce8 0%, var(--panel) 100%); border-color: #fef08a; }
+  .score-hero.sev-low      { background: linear-gradient(135deg, #ecfeff 0%, var(--panel) 100%); border-color: #a5f3fc; }
+  .score-value { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; margin: 0; font-variant-numeric: tabular-nums; }
+  .score-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 600; margin-top: 4px; }
+
+  .sev-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; margin-top: 10px;
+  }
+  .sev-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .sev-info    { color: var(--sev-info);     background: #f1f5f9; }
+  .sev-low     { color: var(--sev-low);      background: #ecfeff; }
+  .sev-medium  { color: var(--sev-medium);   background: #fef9c3; }
+  .sev-high    { color: var(--sev-high);     background: #ffedd5; }
+  .sev-critical{ color: var(--sev-critical); background: #fee2e2; }
+
+  .result-section { padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); margin-bottom: 10px; }
+  .result-section h4 {
+    margin: 0 0 10px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-3); font-weight: 600;
+  }
+  .result-mod-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .result-mod-row:last-child { border-bottom: 0; }
+  .bar-track { width: 90px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+  .result-finding {
+    padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 12.5px;
+    display: grid; grid-template-columns: 3px 1fr auto; gap: 10px; align-items: start;
+  }
+  .result-finding-bar { align-self: stretch; border-radius: 2px; background: var(--sev-info); }
+  .result-finding.sev-critical .result-finding-bar { background: var(--sev-critical); }
+  .result-finding.sev-high .result-finding-bar { background: var(--sev-high); }
+  .result-finding.sev-medium .result-finding-bar { background: var(--sev-medium); }
+  .result-finding.sev-low .result-finding-bar { background: var(--sev-low); }
+  .chip {
+    display: inline-flex; align-items: center; padding: 2px 8px;
+    border-radius: 999px; background: var(--panel); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 500; color: var(--text-2);
+  }
+
+  .toast {
+    position: fixed; top: 80px; right: 24px; padding: 12px 16px;
+    background: var(--danger); color: white; border-radius: var(--radius-sm);
+    box-shadow: var(--shadow); font-size: 13px; z-index: 30;
+    animation: toast-in .2s ease-out;
+  }
+  @keyframes toast-in { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">M</div>
+    <div>
+      <div class="brand-title">Multimodal Monitor</div>
+      <div class="brand-sub">Captura clínica · FIAP Tech Challenge Fase 4</div>
+    </div>
+  </div>
+  <nav class="tabs">
+    <a href="/">Monitoramento</a>
+    <a href="/intake" class="active">Nova admissão</a>
+  </nav>
+</header>
+
+<main>
+  <form id="intake-form" autocomplete="off">
+    <!-- 1. Identificação -->
+    <section class="card">
+      <h3><span class="num">1</span> Identificação do paciente</h3>
+      <div class="row row-2">
+        <div>
+          <label for="patient_id">ID do paciente *</label>
+          <input type="text" id="patient_id" name="patient_id" required placeholder="Ex.: PAC-042" value="PAC-042" />
+        </div>
+        <div>
+          <label for="bed">Leito / setor</label>
+          <input type="text" id="bed" name="bed" placeholder="Ex.: UTI · Leito 07" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Sintomas -->
+    <section class="card">
+      <h3><span class="num">2</span> Sintomas relatados</h3>
+      <label for="symptoms">Texto livre — a IA extrai termos críticos e sentimento</label>
+      <textarea id="symptoms" name="symptoms" placeholder="Ex.: Paciente relata falta de ar há 2 dias, dor no peito ao caminhar, muito cansado…"></textarea>
+    </section>
+
+    <!-- 3. Sinais vitais -->
+    <section class="card">
+      <h3><span class="num">3</span> Sinais vitais</h3>
+      <div class="row row-vitals">
+        <div>
+          <label for="v_hr">Frequência cardíaca</label>
+          <div class="field-with-unit"><input type="number" id="v_hr" step="1" min="20" max="220" placeholder="—" /><span class="unit">bpm</span></div>
+        </div>
+        <div>
+          <label for="v_spo2">SpO₂</label>
+          <div class="field-with-unit"><input type="number" id="v_spo2" step="0.1" min="50" max="100" placeholder="—" /><span class="unit">%</span></div>
+        </div>
+        <div>
+          <label for="v_sbp">Pressão sistólica</label>
+          <div class="field-with-unit"><input type="number" id="v_sbp" step="1" min="60" max="240" placeholder="—" /><span class="unit">mmHg</span></div>
+        </div>
+        <div>
+          <label for="v_dbp">Pressão diastólica</label>
+          <div class="field-with-unit"><input type="number" id="v_dbp" step="1" min="40" max="140" placeholder="—" /><span class="unit">mmHg</span></div>
+        </div>
+        <div>
+          <label for="v_rr">Freq. respiratória</label>
+          <div class="field-with-unit"><input type="number" id="v_rr" step="1" min="5" max="60" placeholder="—" /><span class="unit">rpm</span></div>
+        </div>
+        <div>
+          <label for="v_temp">Temperatura</label>
+          <div class="field-with-unit"><input type="number" id="v_temp" step="0.1" min="32" max="43" placeholder="—" /><span class="unit">°C</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Prescrições -->
+    <section class="card">
+      <h3><span class="num">4</span> Prescrições</h3>
+      <div id="presc-list" class="presc-list"></div>
+      <button type="button" id="add-presc" class="btn btn-sm btn-ghost" style="margin-top:10px;">+ Adicionar prescrição</button>
+    </section>
+
+    <!-- 5. Áudio -->
+    <section class="card">
+      <h3><span class="num">5</span> Áudio da consulta</h3>
+      <div class="media-tabs" data-target="audio">
+        <button type="button" class="active" data-tab="upload">Upload de arquivo</button>
+        <button type="button" data-tab="record">Gravar do microfone</button>
+      </div>
+      <div class="media-panel active" data-panel="audio-upload">
+        <label for="audio-file" class="file-drop" id="audio-drop">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div class="file-name" id="audio-name">Clique para escolher um .wav / .mp3</div>
+          <input type="file" id="audio-file" accept="audio/*" />
+        </label>
+      </div>
+      <div class="media-panel" data-panel="audio-record">
+        <div class="media-record">
+          <div class="rec-header">
+            <span class="rec-status"><span class="rec-dot" id="audio-dot"></span> <span id="audio-status">Pronto para gravar</span></span>
+            <span class="rec-timer" id="audio-timer">00:00</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="audio-rec-start" class="btn btn-accent btn-sm">● Gravar</button>
+            <button type="button" id="audio-rec-stop" class="btn btn-sm" disabled>■ Parar</button>
+            <button type="button" id="audio-rec-clear" class="btn btn-sm btn-ghost" disabled>Descartar</button>
+          </div>
+          <audio id="audio-preview" class="preview" controls style="display:none;"></audio>
+          <div class="media-hint">
+            💡 Gravações em WebM/Opus. Para transcrição Azure Speech, upload de <strong>WAV 16 kHz mono</strong> é o formato ideal.
+            Em modo offline (mock), o endpoint aceita qualquer formato.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Vídeo -->
+    <section class="card">
+      <h3><span class="num">6</span> Vídeo do paciente</h3>
+      <div class="media-tabs" data-target="video">
+        <button type="button" class="active" data-tab="upload">Upload de arquivo</button>
+        <button type="button" data-tab="record">Gravar da webcam</button>
+      </div>
+      <div class="media-panel active" data-panel="video-upload">
+        <label for="video-file" class="file-drop" id="video-drop">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <div class="file-name" id="video-name">Clique para escolher um .mp4</div>
+          <input type="file" id="video-file" accept="video/*" />
+        </label>
+      </div>
+      <div class="media-panel" data-panel="video-record">
+        <div class="media-record">
+          <div class="rec-header">
+            <span class="rec-status"><span class="rec-dot" id="video-dot"></span> <span id="video-status">Pronto para gravar</span></span>
+            <span class="rec-timer" id="video-timer">00:00</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" id="video-rec-start" class="btn btn-accent btn-sm">● Gravar</button>
+            <button type="button" id="video-rec-stop" class="btn btn-sm" disabled>■ Parar</button>
+            <button type="button" id="video-rec-clear" class="btn btn-sm btn-ghost" disabled>Descartar</button>
+          </div>
+          <video id="video-preview" class="preview" controls playsinline muted></video>
+          <div class="media-hint">
+            💡 A gravação usa sua webcam para capturar postura. Requer permissão do navegador.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="submit-bar">
+      <div class="meta" id="submit-meta">Preencha ao menos um campo além do ID.</div>
+      <button type="submit" id="submit-btn" class="btn btn-accent">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Processar admissão
+      </button>
+    </div>
+  </form>
+
+  <aside class="result-panel">
+    <div class="card" id="result-card">
+      <h3><span class="num">R</span> Resultado da análise</h3>
+      <div id="result-content">
+        <div class="result-empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.91.37 4.15 1.01"/></svg>
+          <div>Preencha o formulário e clique em<br/><strong>Processar admissão</strong> para ver o resultado aqui.</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ================== Utilidades ================== */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+const SEVERITY_LABEL = { critical: 'crítico', high: 'elevado', medium: 'moderado', low: 'baixo', info: 'info' };
+const SEV_COLOR = { critical: '#dc2626', high: '#ea580c', medium: '#ca8a04', low: '#0891b2', info: '#64748b' };
+const MODALITY_LABEL = { vitals: 'Sinais vitais', prescription: 'Prescrições', audio: 'Áudio/sintomas', video: 'Vídeo/postura', movement: 'Movimentação' };
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+function scoreToSeverity(s) {
+  if (s >= 0.85) return 'critical';
+  if (s >= 0.6) return 'high';
+  if (s >= 0.35) return 'medium';
+  if (s >= 0.15) return 'low';
+  return 'info';
+}
+
+/* ================== Media tabs ================== */
+$$('.media-tabs').forEach(tabs => {
+  const target = tabs.dataset.target;
+  tabs.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      $$(`[data-panel^="${target}-"]`).forEach(p => p.classList.remove('active'));
+      $(`[data-panel="${target}-${btn.dataset.tab}"]`).classList.add('active');
+    });
+  });
+});
+
+/* ================== File upload ================== */
+function bindFileUpload(inputId, dropId, nameId, defaultText) {
+  const input = $('#' + inputId);
+  const drop = $('#' + dropId);
+  const name = $('#' + nameId);
+  input.addEventListener('change', () => {
+    if (input.files && input.files[0]) {
+      name.textContent = input.files[0].name;
+      drop.classList.add('has-file');
+    } else {
+      name.textContent = defaultText;
+      drop.classList.remove('has-file');
+    }
+  });
+}
+bindFileUpload('audio-file', 'audio-drop', 'audio-name', 'Clique para escolher um .wav / .mp3');
+bindFileUpload('video-file', 'video-drop', 'video-name', 'Clique para escolher um .mp4');
+
+/* ================== Media recording ================== */
+class Recorder {
+  constructor({ kind, dot, status, timer, previewEl, startBtn, stopBtn, clearBtn }) {
+    this.kind = kind; // 'audio' | 'video'
+    this.dot = dot; this.status = status; this.timer = timer;
+    this.previewEl = previewEl;
+    this.startBtn = startBtn; this.stopBtn = stopBtn; this.clearBtn = clearBtn;
+    this.mediaRecorder = null; this.stream = null; this.chunks = []; this.blob = null;
+    this.startTs = 0; this.timerHandle = null;
+    startBtn.addEventListener('click', () => this.start());
+    stopBtn.addEventListener('click', () => this.stop());
+    clearBtn.addEventListener('click', () => this.clear());
+  }
+  async start() {
+    try {
+      const constraints = this.kind === 'audio' ? { audio: true } : { audio: true, video: { width: 640, height: 480 } };
+      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (this.kind === 'video') { this.previewEl.style.display = 'block'; this.previewEl.srcObject = this.stream; await this.previewEl.play(); }
+      this.chunks = [];
+      const mimeCandidates = this.kind === 'audio'
+        ? ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
+        : ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+      const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      this.mediaRecorder = new MediaRecorder(this.stream, mimeType ? { mimeType } : undefined);
+      this.mediaRecorder.ondataavailable = e => { if (e.data.size) this.chunks.push(e.data); };
+      this.mediaRecorder.onstop = () => this._finalize();
+      this.mediaRecorder.start(250);
+      this.startTs = Date.now();
+      this.timerHandle = setInterval(() => this._tick(), 250);
+      this.dot.classList.add('live');
+      this.status.textContent = 'Gravando…';
+      this.startBtn.disabled = true; this.stopBtn.disabled = false; this.clearBtn.disabled = true;
+    } catch (err) {
+      console.error(err);
+      toast(`Falha ao acessar ${this.kind === 'audio' ? 'microfone' : 'webcam'}: ${err.message}`);
+    }
+  }
+  stop() {
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
+    this.mediaRecorder.stop();
+    this.stream.getTracks().forEach(t => t.stop());
+    clearInterval(this.timerHandle); this.timerHandle = null;
+  }
+  _finalize() {
+    const type = this.mediaRecorder.mimeType || (this.kind === 'audio' ? 'audio/webm' : 'video/webm');
+    this.blob = new Blob(this.chunks, { type });
+    const url = URL.createObjectURL(this.blob);
+    if (this.kind === 'audio') {
+      this.previewEl.style.display = 'block';
+      this.previewEl.src = url;
+    } else {
+      this.previewEl.srcObject = null;
+      this.previewEl.src = url; this.previewEl.muted = false; this.previewEl.controls = true;
+    }
+    this.dot.classList.remove('live');
+    this.status.textContent = `Gravação pronta (${(this.blob.size/1024).toFixed(1)} KB)`;
+    this.startBtn.disabled = false; this.stopBtn.disabled = true; this.clearBtn.disabled = false;
+  }
+  clear() {
+    this.blob = null; this.chunks = [];
+    if (this.kind === 'audio') { this.previewEl.src = ''; this.previewEl.style.display = 'none'; }
+    else { this.previewEl.src = ''; this.previewEl.srcObject = null; }
+    this.status.textContent = 'Pronto para gravar';
+    this.timer.textContent = '00:00';
+    this.clearBtn.disabled = true;
+  }
+  _tick() {
+    const s = Math.floor((Date.now() - this.startTs) / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    this.timer.textContent = `${mm}:${ss}`;
+  }
+  getBlob() { return this.blob; }
+  getFileName() {
+    if (!this.blob) return null;
+    const ext = this.blob.type.includes('webm') ? 'webm' : (this.blob.type.includes('ogg') ? 'ogg' : 'bin');
+    return `${this.kind}-gravacao.${ext}`;
+  }
+}
+
+const audioRec = new Recorder({
+  kind: 'audio', dot: $('#audio-dot'), status: $('#audio-status'), timer: $('#audio-timer'),
+  previewEl: $('#audio-preview'), startBtn: $('#audio-rec-start'), stopBtn: $('#audio-rec-stop'), clearBtn: $('#audio-rec-clear'),
+});
+const videoRec = new Recorder({
+  kind: 'video', dot: $('#video-dot'), status: $('#video-status'), timer: $('#video-timer'),
+  previewEl: $('#video-preview'), startBtn: $('#video-rec-start'), stopBtn: $('#video-rec-stop'), clearBtn: $('#video-rec-clear'),
+});
+
+/* ================== Prescrições dinâmicas ================== */
+const DRUGS = ['paracetamol','dipirona','ibuprofeno','morfina','warfarina','insulina','amoxicilina','furosemida'];
+
+function addPrescRow(preset = {}) {
+  const row = document.createElement('div');
+  row.className = 'presc-row';
+  row.innerHTML = `
+    <div>
+      <label>Medicamento</label>
+      <input list="drugs-list" class="p-drug" value="${preset.drug || ''}" placeholder="ex.: dipirona" />
+    </div>
+    <div>
+      <label>Dose (mg)</label>
+      <input type="number" class="p-dose" min="0" step="1" value="${preset.dose_mg || ''}" placeholder="1000" />
+    </div>
+    <div>
+      <label>Ação</label>
+      <select class="p-action">
+        <option value="prescribe" ${preset.action==='prescribe'?'selected':''}>prescrever</option>
+        <option value="suspend" ${preset.action==='suspend'?'selected':''}>suspender</option>
+        <option value="resume" ${preset.action==='resume'?'selected':''}>reintroduzir</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-sm del" title="Remover">✕</button>`;
+  row.querySelector('.del').addEventListener('click', () => row.remove());
+  $('#presc-list').appendChild(row);
+  if (!$('#drugs-list')) {
+    const dl = document.createElement('datalist'); dl.id = 'drugs-list';
+    DRUGS.forEach(d => { const o = document.createElement('option'); o.value = d; dl.appendChild(o); });
+    document.body.appendChild(dl);
+  }
+}
+$('#add-presc').addEventListener('click', () => addPrescRow());
+
+/* ================== Coleta e submit ================== */
+function collectVitals() {
+  const v = {
+    heart_rate: $('#v_hr').valueAsNumber, spo2: $('#v_spo2').valueAsNumber,
+    systolic_bp: $('#v_sbp').valueAsNumber, diastolic_bp: $('#v_dbp').valueAsNumber,
+    respiratory_rate: $('#v_rr').valueAsNumber, temperature: $('#v_temp').valueAsNumber,
+  };
+  const hasAny = Object.values(v).some(x => !isNaN(x));
+  if (!hasAny) return [];
+  const reading = { timestamp: new Date().toISOString() };
+  Object.entries(v).forEach(([k, val]) => { if (!isNaN(val)) reading[k] = val; });
+  return [reading];
+}
+
+function collectPrescriptions() {
+  const rows = $$('.presc-row');
+  const t0 = new Date();
+  return rows.map((row, i) => {
+    const drug = row.querySelector('.p-drug').value.trim();
+    const dose = row.querySelector('.p-dose').valueAsNumber;
+    const action = row.querySelector('.p-action').value;
+    if (!drug || isNaN(dose)) return null;
+    return {
+      timestamp: new Date(t0.getTime() + i * 60000).toISOString(),
+      drug, dose_mg: dose, action,
+    };
+  }).filter(Boolean);
+}
+
+$('#intake-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('#submit-btn');
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> Processando…`;
+
+  try {
+    const fd = new FormData();
+    fd.append('patient_id', $('#patient_id').value.trim() || 'PAC-001');
+
+    const data = {};
+    const symptoms = $('#symptoms').value.trim();
+    if (symptoms) data.symptoms = symptoms;
+    const readings = collectVitals();
+    if (readings.length) data.readings = readings;
+    const prescriptions = collectPrescriptions();
+    if (prescriptions.length) data.prescriptions = prescriptions;
+    if (Object.keys(data).length) fd.append('data', JSON.stringify(data));
+
+    // Áudio: preferência para gravação, senão arquivo
+    const audioBlob = audioRec.getBlob();
+    if (audioBlob) fd.append('audio', audioBlob, audioRec.getFileName());
+    else if ($('#audio-file').files[0]) fd.append('audio', $('#audio-file').files[0]);
+
+    // Vídeo: idem
+    const videoBlob = videoRec.getBlob();
+    if (videoBlob) fd.append('video', videoBlob, videoRec.getFileName());
+    else if ($('#video-file').files[0]) fd.append('video', $('#video-file').files[0]);
+
+    const resp = await fetch('/intake', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'erro desconhecido' }));
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+    const report = await resp.json();
+    renderResult(report);
+  } catch (err) {
+    console.error(err);
+    toast(`Falha no processamento: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+});
+
+/* ================== Renderização do resultado ================== */
+function renderResult(rep) {
+  const container = $('#result-content');
+  const score = rep.risk_score ?? 0;
+  const sev = rep.alert ? rep.alert.severity : scoreToSeverity(score);
+
+  const modalitiesHtml = Object.entries(rep.modalities || {})
+    .sort((a, b) => b[1].risk_score - a[1].risk_score)
+    .map(([mod, d]) => {
+      const s = scoreToSeverity(d.risk_score);
+      return `
+        <div class="result-mod-row">
+          <div>${MODALITY_LABEL[mod] || mod} <span style="color:var(--text-3);font-size:11.5px;">· ${d.findings.length}</span></div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.risk_score*100)}%; background:${SEV_COLOR[s]};"></div></div>
+            <div style="font-variant-numeric: tabular-nums; font-weight:600; min-width:32px; text-align:right; font-size:12.5px;">${d.risk_score.toFixed(2)}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+  const findings = [];
+  Object.entries(rep.modalities || {}).forEach(([mod, d]) => d.findings.forEach(f => findings.push({ ...f, _mod: mod })));
+  const sevOrder = ['critical','high','medium','low','info'];
+  findings.sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity) || (b.score - a.score));
+
+  const findingsHtml = findings.slice(0, 8).map(f => `
+    <div class="result-finding sev-${f.severity}">
+      <div class="result-finding-bar"></div>
+      <div>
+        <div>${escapeHtml(f.description)}</div>
+        <div style="margin-top:4px; display:flex; gap:6px; align-items:center;">
+          <span class="sev-badge sev-${f.severity}">${SEVERITY_LABEL[f.severity] || f.severity}</span>
+          <span class="chip">${MODALITY_LABEL[f._mod] || f._mod}</span>
+        </div>
+      </div>
+      <div class="chip">${f.score.toFixed(2)}</div>
+    </div>`).join('') || `<div style="text-align:center; color:var(--text-3); padding:16px; font-size:12.5px;">Nenhum achado — dentro do esperado.</div>`;
+
+  const alertBlock = rep.alert ? `
+    <div class="result-section">
+      <h4>Alerta clínico</h4>
+      <div style="font-weight:600; font-size:14px; letter-spacing:-0.01em;">${escapeHtml(rep.alert.title)}</div>
+      <div style="margin-top:6px; color:var(--text-2); font-size:12.5px;">${escapeHtml(rep.alert.message)}</div>
+    </div>` : `
+    <div class="result-section" style="background:var(--panel-2);">
+      <div style="font-size:13px; color:var(--text-2);">Sem alerta — risco abaixo do limiar clínico.</div>
+    </div>`;
+
+  const inputsMeta = rep.inputs_received || {};
+  const inputsBlock = `
+    <div class="result-section">
+      <h4>Insumos recebidos</h4>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        ${inputsMeta.symptoms_text ? '<span class="chip">✓ Sintomas</span>' : ''}
+        ${inputsMeta.vitals_readings ? `<span class="chip">✓ ${inputsMeta.vitals_readings} vital(is)</span>` : ''}
+        ${inputsMeta.prescriptions ? `<span class="chip">✓ ${inputsMeta.prescriptions} prescrição(ões)</span>` : ''}
+        ${inputsMeta.audio_file ? `<span class="chip">🎙 ${escapeHtml(inputsMeta.audio_file)}</span>` : ''}
+        ${inputsMeta.video_file ? `<span class="chip">🎥 ${escapeHtml(inputsMeta.video_file)}</span>` : ''}
+      </div>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="score-hero sev-${sev}">
+      <div class="score-value">${score.toFixed(2)}</div>
+      <div class="score-label">Score de risco multimodal</div>
+      <div><span class="sev-badge sev-${sev}">${SEVERITY_LABEL[sev] || sev}</span></div>
+    </div>
+    ${alertBlock}
+    <div class="result-section">
+      <h4>Contribuição por modalidade</h4>
+      ${modalitiesHtml || '<div style="color:var(--text-3); font-size:12.5px;">Nenhuma modalidade ativa.</div>'}
+    </div>
+    <div class="result-section">
+      <h4>Principais achados</h4>
+      ${findingsHtml}
+    </div>
+    ${inputsBlock}
+    <div style="text-align:center; margin-top:12px;">
+      <a href="/" class="btn btn-primary btn-sm" style="text-decoration:none;">Ir para o monitoramento →</a>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ================== Estado inicial ================== */
+addPrescRow();  // uma linha vazia para começar
+</script>
+
+</body>
+</html>

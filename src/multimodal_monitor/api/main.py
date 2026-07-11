@@ -61,6 +61,12 @@ def dashboard() -> FileResponse:
     return FileResponse(_STATIC_DIR / "dashboard.html")
 
 
+@app.get("/intake", include_in_schema=False)
+def intake_page() -> FileResponse:
+    """Serve a tela de captura clínica (formulário multimodal com gravação)."""
+    return FileResponse(_STATIC_DIR / "intake.html")
+
+
 # --------------------------------------------------------------------------- #
 # Modelos de requisição
 # --------------------------------------------------------------------------- #
