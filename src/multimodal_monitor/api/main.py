@@ -6,17 +6,21 @@ Endpoints
 - ``POST /monitor/vitals``    — analisa um lote de leituras de sinais vitais.
 - ``POST /monitor/prescriptions`` — analisa uma evolução de prescrições.
 - ``POST /monitor``           — ciclo multimodal (vitais + prescrições + texto).
+- ``POST /intake``            — captura clínica multipart: sintomas digitados +
+                                vitais + prescrições + upload de áudio/vídeo.
 
 Execução: ``uvicorn multimodal_monitor.api.main:app --reload``
 """
 
 from __future__ import annotations
 
+import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -24,7 +28,7 @@ from pydantic import BaseModel, Field
 from ..anomaly_detection.prescriptions import PrescriptionEvent
 from ..config import get_settings
 from ..integration.orchestrator import MonitoringInput, PatientMonitor
-from ..schemas import VitalSignReading
+from ..schemas import Finding, Modality, ModalityResult, VitalSignReading
 from ..synthetic import (
     SAMPLE_TRANSCRIPTS,
     generate_pose_frames,
@@ -154,7 +158,6 @@ def monitor(req: MonitorRequest) -> dict:
     # texto de consulta (quando fornecido diretamente) via análise de texto
     if req.transcript:
         insights = monitor.audio_pipeline.text_analytics.analyze(req.transcript)
-        from ..schemas import Finding, Modality, ModalityResult
 
         findings = [
             Finding(
@@ -225,7 +228,6 @@ def demo_run(req: DemoRequest) -> dict:
 
     # análise textual (equivale ao STT em modo mock, sem I/O de arquivo)
     insights = monitor.audio_pipeline.text_analytics.analyze(transcript)
-    from ..schemas import Finding, Modality, ModalityResult
 
     audio_result = ModalityResult(
         modality=Modality.AUDIO,
@@ -278,5 +280,169 @@ def demo_run(req: DemoRequest) -> dict:
             "critical_terms": [
                 {"term": t, "severity": s.value} for t, s in insights.critical_terms
             ],
+        },
+    }
+
+
+# --------------------------------------------------------------------------- #
+# POST /intake — captura clínica multipart (upload de áudio/vídeo + JSON)
+# --------------------------------------------------------------------------- #
+async def _save_upload(upload: UploadFile, dst_dir: Path) -> Path:
+    """Persiste um `UploadFile` em disco e devolve o caminho gerado.
+
+    Sanitiza o nome (usa apenas o basename) para evitar path traversal.
+    """
+    filename = Path(upload.filename or "upload.bin").name
+    dst = dst_dir / filename
+    content = await upload.read()
+    dst.write_bytes(content)
+    return dst
+
+
+def _merge_or_append_audio(
+    results: list[ModalityResult],
+    typed_findings: list[Finding],
+    typed_summary: str,
+) -> list[ModalityResult]:
+    """Se já existe um `ModalityResult` de AUDIO nos resultados, mescla os
+    achados dos sintomas digitados nele; caso contrário, cria um novo.
+
+    Mantém uma única entrada de AUDIO na fusão (evita dupla contagem).
+    """
+    existing = next((r for r in results if r.modality == Modality.AUDIO), None)
+    if existing is None:
+        return results + [
+            ModalityResult(
+                modality=Modality.AUDIO,
+                findings=typed_findings,
+                summary=typed_summary,
+            )
+        ]
+    merged = ModalityResult(
+        modality=Modality.AUDIO,
+        findings=list(existing.findings) + typed_findings,
+        summary=f"{existing.summary} | {typed_summary}",
+        metadata=existing.metadata,
+    )
+    return [r for r in results if r.modality != Modality.AUDIO] + [merged]
+
+
+@app.post("/intake")
+async def intake(
+    patient_id: str = Form(..., description="Identificador do paciente"),
+    data: str | None = Form(
+        None,
+        description=(
+            "JSON com {symptoms, readings, prescriptions} — todos opcionais. "
+            "Ex.: {\"symptoms\":\"dor no peito\",\"readings\":[...],"
+            "\"prescriptions\":[...]}"
+        ),
+    ),
+    audio: UploadFile | None = File(
+        None, description="Áudio da consulta (.wav 16kHz mono ou .mp3)"
+    ),
+    video: UploadFile | None = File(
+        None, description="Vídeo do paciente (.mp4) — análise postural via MediaPipe"
+    ),
+) -> dict:
+    """Captura clínica ponta-a-ponta ("admissão" multimodal).
+
+    Aceita qualquer combinação de:
+    - sintomas em texto livre (analisados via Text Analytics)
+    - leituras de sinais vitais (RF03)
+    - eventos de prescrição (RF03)
+    - áudio de consulta (RF02, Azure Speech to Text ou fallback offline)
+    - vídeo do paciente (RF01, MediaPipe Pose)
+
+    Executa o pipeline multimodal completo e devolve o relatório com score
+    de risco e alerta (se ultrapassar o limiar). Arquivos são gravados em
+    diretório temporário e removidos ao final.
+    """
+    payload: dict = {}
+    if data:
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(400, f"campo 'data' não é JSON válido: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise HTTPException(400, "campo 'data' deve ser um objeto JSON")
+
+    try:
+        readings = [VitalSignReading(**r) for r in payload.get("readings", [])]
+        prescriptions = [
+            PrescriptionEvent(**p) for p in payload.get("prescriptions", [])
+        ]
+    except Exception as exc:
+        raise HTTPException(400, f"payload inválido: {exc}") from exc
+
+    symptoms: str | None = payload.get("symptoms")
+
+    with tempfile.TemporaryDirectory(prefix="intake_") as tmp:
+        tmp_dir = Path(tmp)
+        audio_path: Path | None = None
+        video_path: Path | None = None
+
+        if audio is not None and audio.filename:
+            audio_path = await _save_upload(audio, tmp_dir)
+        if video is not None and video.filename:
+            video_path = await _save_upload(video, tmp_dir)
+
+        monitor = _get_monitor()
+        report = monitor.run(
+            MonitoringInput(
+                patient_id=patient_id,
+                vitals=_readings_to_df(readings),
+                prescriptions=prescriptions,
+                audio_path=audio_path,
+                video_path=video_path,
+            )
+        )
+        all_results = list(report.modality_results)
+
+        # sintomas digitados vão para a modalidade AUDIO (fala do paciente
+        # transcrita antecipadamente pela enfermagem/médico), mesclando com
+        # o resultado do áudio se este também foi enviado.
+        if symptoms:
+            insights = monitor.audio_pipeline.text_analytics.analyze(symptoms)
+            typed_findings = [
+                Finding(
+                    modality=Modality.AUDIO,
+                    severity=sev,
+                    description=f"Sintoma relatado (digitado): '{term}'",
+                    score=0.6,
+                    metadata={"term": term, "source": "typed"},
+                )
+                for term, sev in insights.critical_terms
+            ]
+            typed_summary = (
+                f"Sintomas digitados: sentimento {insights.sentiment} "
+                f"({insights.sentiment_score:+.2f}); "
+                f"{len(insights.critical_terms)} termo(s) crítico(s)"
+            )
+            all_results = _merge_or_append_audio(
+                all_results, typed_findings, typed_summary
+            )
+
+        risk_score, alert = monitor.fusion.fuse(patient_id, all_results)
+
+    return {
+        "patient_id": patient_id,
+        "generated_at": datetime.now().isoformat(),
+        "inputs_received": {
+            "symptoms_text": bool(symptoms),
+            "vitals_readings": len(readings),
+            "prescriptions": len(prescriptions),
+            "audio_file": (audio.filename if audio and audio.filename else None),
+            "video_file": (video.filename if video and video.filename else None),
+        },
+        "risk_score": risk_score,
+        "alert": alert.model_dump(mode="json") if alert else None,
+        "modalities": {
+            r.modality.value: {
+                "risk_score": r.risk_score,
+                "summary": r.summary,
+                "findings": [f.model_dump(mode="json") for f in r.findings],
+            }
+            for r in all_results
         },
     }
