@@ -671,15 +671,38 @@ $('#intake-form').addEventListener('submit', async (e) => {
     if (videoBlob) fd.append('video', videoBlob, videoRec.getFileName());
     else if ($('#video-file').files[0]) fd.append('video', $('#video-file').files[0]);
 
-    const resp = await fetch('/intake', { method: 'POST', body: fd });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ detail: 'erro desconhecido' }));
-      throw new Error(err.detail || `HTTP ${resp.status}`);
+    // Diagnóstico: registra o que estamos enviando
+    const debugPayload = { entries: [] };
+    for (const [k, v] of fd.entries()) {
+      debugPayload.entries.push({
+        key: k,
+        kind: v instanceof File ? `File(${v.name}, ${v.size}B, ${v.type || '?'})` : typeof v,
+        preview: v instanceof File ? undefined : String(v).slice(0, 120),
+      });
     }
-    const report = await resp.json();
+    console.log('[intake] enviando →', debugPayload);
+
+    const resp = await fetch('/intake', { method: 'POST', body: fd });
+    const rawBody = await resp.text();
+    console.log('[intake] recebido ←', resp.status, resp.statusText, rawBody.slice(0, 500));
+
+    if (!resp.ok) {
+      let detail = null;
+      try { detail = JSON.parse(rawBody).detail; } catch { /* corpo não é JSON */ }
+      const preview = rawBody.slice(0, 200).replace(/\s+/g, ' ').trim();
+      throw new Error(
+        detail
+          ? `HTTP ${resp.status}: ${detail}`
+          : `HTTP ${resp.status} ${resp.statusText}${preview ? ' — ' + preview : ''}`
+      );
+    }
+
+    let report;
+    try { report = JSON.parse(rawBody); }
+    catch (e) { throw new Error(`resposta inválida do servidor: ${rawBody.slice(0, 200)}`); }
     renderResult(report);
   } catch (err) {
-    console.error(err);
+    console.error('[intake] erro:', err);
     toast(`Falha no processamento: ${err.message}`);
   } finally {
     btn.disabled = false;

@@ -15,7 +15,9 @@ Execução: ``uvicorn multimodal_monitor.api.main:app --reload``
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -364,6 +366,28 @@ async def intake(
     de risco e alerta (se ultrapassar o limiar). Arquivos são gravados em
     diretório temporário e removidos ao final.
     """
+    try:
+        return await _intake_impl(patient_id, data, audio, video)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - devolvemos detalhe rico ao cliente
+        logging.getLogger(__name__).exception("Falha no /intake")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": f"{type(exc).__name__}: {exc}",
+                "traceback": traceback.format_exc().splitlines()[-8:],
+            },
+        ) from exc
+
+
+async def _intake_impl(
+    patient_id: str,
+    data: str | None,
+    audio: UploadFile | None,
+    video: UploadFile | None,
+) -> dict:
+    """Corpo real do handler de intake (isolado para tratamento uniforme de erros)."""
     payload: dict = {}
     if data:
         try:

@@ -109,16 +109,29 @@ class PatientMonitor:
                 )
             )
 
-        # RF02 — áudio
+        # RF02 — áudio (protegido contra qualquer falha de decodificação/SDK)
         if data.audio_path:
-            results.append(self.audio_pipeline.process(data.audio_path))
+            try:
+                results.append(self.audio_pipeline.process(data.audio_path))
+            except Exception as exc:
+                logger.warning(
+                    "Análise de áudio falhou (%s: %s); prosseguindo sem essa modalidade.",
+                    type(exc).__name__,
+                    exc,
+                )
 
         # RF01 — vídeo (online se houver arquivo; offline se houver pose pré-computada)
+        # Blindado contra qualquer exceção (OpenCV pode falhar em WebM/codecs
+        # desconhecidos, MediaPipe pode explodir em quadros corrompidos, etc.)
         if data.video_path:
             try:
                 results.append(self.video_pipeline.process(data.video_path))
-            except RuntimeError as exc:
-                logger.warning("Análise de vídeo online indisponível (%s).", exc)
+            except Exception as exc:
+                logger.warning(
+                    "Análise de vídeo falhou (%s: %s); prosseguindo sem essa modalidade.",
+                    type(exc).__name__,
+                    exc,
+                )
         elif data.pose_frames:
             results.append(self.video_pipeline.process_pose_frames(data.pose_frames))
 
