@@ -32,9 +32,15 @@ class PoseFrame:
 
 
 def _vision_available() -> bool:
+    """Checa se OpenCV + MediaPipe estão realmente utilizáveis.
+
+    Não basta `import mediapipe` — algumas versões (0.10.9+ em Python 3.12)
+    trazem o pacote mas não carregam o submódulo ``solutions.pose``.
+    Verificamos até o ponto de uso real.
+    """
     try:
         import cv2  # noqa: F401
-        import mediapipe  # noqa: F401
+        from mediapipe.python.solutions import pose  # noqa: F401
 
         return True
     except ImportError:
@@ -61,13 +67,17 @@ class PoseAnalyzer:
             )
 
         import cv2  # type: ignore
-        import mediapipe as mp  # type: ignore
+
+        # MediaPipe: `import mediapipe as mp` não carrega `mp.solutions`
+        # automaticamente em algumas versões (0.10.9+ / Python 3.12).
+        # Importar o submódulo explicitamente é a forma robusta.
+        from mediapipe.python.solutions import pose as mp_pose  # type: ignore
 
         video_path = Path(video_path)
         cap = cv2.VideoCapture(str(video_path))
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-        pose = mp.solutions.pose.Pose(model_complexity=1, min_detection_confidence=0.5)
+        pose = mp_pose.Pose(model_complexity=1, min_detection_confidence=0.5)
         frames: list[PoseFrame] = []
         prev_landmarks = None
         idx = 0
@@ -117,9 +127,9 @@ class PoseAnalyzer:
     def _trunk_angle(landmarks: object) -> float | None:
         """Ângulo do tronco (ombros→quadris) em relação à vertical, em graus."""
         try:
-            import mediapipe as mp  # type: ignore
+            from mediapipe.python.solutions import pose as mp_pose  # type: ignore
 
-            pl = mp.solutions.pose.PoseLandmark
+            pl = mp_pose.PoseLandmark
             ls, rs = landmarks[pl.LEFT_SHOULDER], landmarks[pl.RIGHT_SHOULDER]
             lh, rh = landmarks[pl.LEFT_HIP], landmarks[pl.RIGHT_HIP]
             shoulder = ((ls.x + rs.x) / 2, (ls.y + rs.y) / 2)
