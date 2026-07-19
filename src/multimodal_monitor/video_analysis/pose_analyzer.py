@@ -31,20 +31,51 @@ class PoseFrame:
     trunk_angle: float | None = None
 
 
+def _load_pose_module() -> object | None:
+    """Tenta carregar ``mediapipe.solutions.pose`` por várias rotas.
+
+    Diferentes versões / builds do MediaPipe expõem o submódulo por caminhos
+    diferentes (lazy loading, import direto, atributo do pacote raiz).
+    Tentamos os três em ordem e devolvemos o primeiro que funcionar — ou
+    ``None`` se nenhum estiver disponível.
+    """
+    # 1. caminho canônico moderno
+    try:
+        from mediapipe.python.solutions import pose as mp_pose
+
+        return mp_pose
+    except Exception:  # noqa: BLE001 — qualquer falha de import/init
+        pass
+    # 2. import direto do submódulo por atributo
+    try:
+        import mediapipe.solutions.pose as mp_pose  # type: ignore
+
+        return mp_pose
+    except Exception:  # noqa: BLE001
+        pass
+    # 3. lazy: força carga do submódulo via pacote raiz
+    try:
+        import importlib
+
+        import mediapipe  # noqa: F401
+
+        return importlib.import_module("mediapipe.solutions.pose")
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _vision_available() -> bool:
     """Checa se OpenCV + MediaPipe estão realmente utilizáveis.
 
     Não basta `import mediapipe` — algumas versões (0.10.9+ em Python 3.12)
-    trazem o pacote mas não carregam o submódulo ``solutions.pose``.
-    Verificamos até o ponto de uso real.
+    trazem o pacote mas não expõem o submódulo ``solutions.pose`` pelas rotas
+    convencionais. Verificamos até o ponto de uso real.
     """
     try:
         import cv2  # noqa: F401
-        from mediapipe.python.solutions import pose  # noqa: F401
-
-        return True
     except ImportError:
         return False
+    return _load_pose_module() is not None
 
 
 class PoseAnalyzer:
@@ -68,10 +99,13 @@ class PoseAnalyzer:
 
         import cv2  # type: ignore
 
-        # MediaPipe: `import mediapipe as mp` não carrega `mp.solutions`
-        # automaticamente em algumas versões (0.10.9+ / Python 3.12).
-        # Importar o submódulo explicitamente é a forma robusta.
-        from mediapipe.python.solutions import pose as mp_pose  # type: ignore
+        mp_pose = _load_pose_module()
+        if mp_pose is None:
+            raise RuntimeError(
+                "Não foi possível carregar mediapipe.solutions.pose. "
+                "Sua versão do MediaPipe pode estar incompatível — tente "
+                "`pip install 'mediapipe>=0.10.11,<0.11'`."
+            )
 
         video_path = Path(video_path)
         cap = cv2.VideoCapture(str(video_path))
@@ -127,8 +161,9 @@ class PoseAnalyzer:
     def _trunk_angle(landmarks: object) -> float | None:
         """Ângulo do tronco (ombros→quadris) em relação à vertical, em graus."""
         try:
-            from mediapipe.python.solutions import pose as mp_pose  # type: ignore
-
+            mp_pose = _load_pose_module()
+            if mp_pose is None:
+                return None
             pl = mp_pose.PoseLandmark
             ls, rs = landmarks[pl.LEFT_SHOULDER], landmarks[pl.RIGHT_SHOULDER]
             lh, rh = landmarks[pl.LEFT_HIP], landmarks[pl.RIGHT_HIP]
