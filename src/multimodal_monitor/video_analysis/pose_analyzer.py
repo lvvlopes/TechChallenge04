@@ -103,8 +103,9 @@ class PoseAnalyzer:
         if mp_pose is None:
             raise RuntimeError(
                 "Não foi possível carregar mediapipe.solutions.pose. "
-                "Sua versão do MediaPipe pode estar incompatível — tente "
-                "`pip install 'mediapipe>=0.10.11,<0.11'`."
+                "Versões 0.10.3x do MediaPipe removeram a API legada "
+                "'solutions' — instale uma versão compatível: "
+                "`pip install \"mediapipe==0.10.14\"`."
             )
 
         video_path = Path(video_path)

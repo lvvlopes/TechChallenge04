@@ -13,7 +13,7 @@ authors = [{ name = "Grupo FIAP Pós-Tech IADT" }]
 keywords = ["healthcare", "multimodal", "anomaly-detection", "azure", "computer-vision"]
 
 dependencies = [
-    "numpy>=1.24,<2.0",
+    "numpy>=1.24,<3",
     "pandas>=2.0",
     "scipy>=1.10",
     "scikit-learn>=1.3",
@@ -28,7 +28,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-vision = ["opencv-python>=4.9", "mediapipe>=0.10", "ultralytics>=8.1"]
+# mediapipe < 0.10.20: versões mais novas (0.10.3x) removeram a API legada
+# `solutions.pose` usada pelo PoseAnalyzer (migraram para a Tasks API).
+vision = ["opencv-python>=4.9", "mediapipe>=0.10.8,<0.10.20", "ultralytics>=8.1"]
 audio = ["azure-cognitiveservices-speech>=1.36", "azure-ai-textanalytics>=5.3"]
 dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8"]
 
