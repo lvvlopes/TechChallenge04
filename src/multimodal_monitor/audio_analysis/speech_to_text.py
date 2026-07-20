@@ -52,9 +52,50 @@ class SpeechToText:
         return self._transcribe_mock(audio_path, locale)
 
     # ------------------------------------------------------------------ #
+    def _ensure_wav(self, audio_path: Path) -> Path:
+        """Garante um arquivo WAV PCM para o Azure Speech SDK.
+
+        O SDK só decodifica WAV nativamente (formatos comprimidos como
+        WebM/Opus/MP3 exigem GStreamer). Se o arquivo não for `.wav` e o
+        ffmpeg estiver disponível no PATH, converte para WAV 16 kHz mono;
+        caso contrário, devolve o caminho original (a transcrição
+        provavelmente falhará e o chamador cairá no modo mock).
+        """
+        if audio_path.suffix.lower() == ".wav":
+            return audio_path
+
+        import shutil
+        import subprocess
+        import tempfile
+
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            logger.warning(
+                "Arquivo %s não é WAV e o ffmpeg não está no PATH — o Azure "
+                "Speech pode não conseguir decodificá-lo. Instale o ffmpeg "
+                "ou envie WAV 16 kHz mono.",
+                audio_path.name,
+            )
+            return audio_path
+
+        dst = Path(tempfile.gettempdir()) / f"{audio_path.stem}_16k.wav"
+        subprocess.run(
+            [
+                ffmpeg, "-y", "-i", str(audio_path),
+                "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+                str(dst),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        logger.info("Áudio convertido para WAV 16 kHz mono: %s", dst.name)
+        return dst
+
     def _transcribe_azure(self, audio_path: Path, locale: str) -> TranscriptionResult:
         """Transcrição real via Azure Speech SDK (contínua)."""
         import azure.cognitiveservices.speech as speechsdk  # type: ignore
+
+        audio_path = self._ensure_wav(audio_path)
 
         speech_config = speechsdk.SpeechConfig(
             subscription=self.settings.azure_speech_key,

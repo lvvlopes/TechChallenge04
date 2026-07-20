@@ -371,8 +371,9 @@
           </div>
           <audio id="audio-preview" class="preview" controls style="display:none;"></audio>
           <div class="media-hint">
-            💡 Gravações em WebM/Opus. Para transcrição Azure Speech, upload de <strong>WAV 16 kHz mono</strong> é o formato ideal.
-            Em modo offline (mock), o endpoint aceita qualquer formato.
+            💡 A gravação é codificada como <strong>WAV PCM 16 kHz mono</strong> — o formato
+            nativo do Azure Speech to Text. Fale claramente os sintomas
+            (ex.: "estou com falta de ar e dor no peito").
           </div>
         </div>
       </div>
@@ -490,6 +491,50 @@ bindFileUpload('audio-file', 'audio-drop', 'audio-name', 'Clique para escolher u
 bindFileUpload('video-file', 'video-drop', 'video-name', 'Clique para escolher um .mp4');
 
 /* ================== Media recording ================== */
+/* Áudio: gravado via Web Audio API e codificado como WAV PCM16 16 kHz mono —
+   o formato nativo do Azure Speech to Text (MediaRecorder só produz
+   WebM/Opus, que o SDK não decodifica sem GStreamer).
+   Vídeo: MediaRecorder (WebM) — decodificado no servidor via OpenCV. */
+
+async function resampleTo16k(samples, fromRate) {
+  if (fromRate === 16000) return samples;
+  const length = Math.max(1, Math.ceil(samples.length * 16000 / fromRate));
+  const offline = new OfflineAudioContext(1, length, 16000);
+  const buf = offline.createBuffer(1, samples.length, fromRate);
+  buf.copyToChannel(samples, 0);
+  const src = offline.createBufferSource();
+  src.buffer = buf;
+  src.connect(offline.destination);
+  src.start();
+  const rendered = await offline.startRendering();
+  return rendered.getChannelData(0);
+}
+
+function encodeWavPcm16(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);           // PCM
+  view.setUint16(22, 1, true);           // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  let off = 44;
+  for (let i = 0; i < samples.length; i++, off += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
 class Recorder {
   constructor({ kind, dot, status, timer, previewEl, startBtn, stopBtn, clearBtn }) {
     this.kind = kind; // 'audio' | 'video'
@@ -497,6 +542,7 @@ class Recorder {
     this.previewEl = previewEl;
     this.startBtn = startBtn; this.stopBtn = stopBtn; this.clearBtn = clearBtn;
     this.mediaRecorder = null; this.stream = null; this.chunks = []; this.blob = null;
+    this.audioCtx = null; this.sourceNode = null; this.processorNode = null; this.pcmChunks = [];
     this.startTs = 0; this.timerHandle = null;
     startBtn.addEventListener('click', () => this.start());
     stopBtn.addEventListener('click', () => this.stop());
@@ -504,18 +550,28 @@ class Recorder {
   }
   async start() {
     try {
-      const constraints = this.kind === 'audio' ? { audio: true } : { audio: true, video: { width: 640, height: 480 } };
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (this.kind === 'video') { this.previewEl.style.display = 'block'; this.previewEl.srcObject = this.stream; await this.previewEl.play(); }
-      this.chunks = [];
-      const mimeCandidates = this.kind === 'audio'
-        ? ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
-        : ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-      const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
-      this.mediaRecorder = new MediaRecorder(this.stream, mimeType ? { mimeType } : undefined);
-      this.mediaRecorder.ondataavailable = e => { if (e.data.size) this.chunks.push(e.data); };
-      this.mediaRecorder.onstop = () => this._finalize();
-      this.mediaRecorder.start(250);
+      if (this.kind === 'audio') {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.pcmChunks = [];
+        this.sourceNode = this.audioCtx.createMediaStreamSource(this.stream);
+        this.processorNode = this.audioCtx.createScriptProcessor(4096, 1, 1);
+        this.processorNode.onaudioprocess = (e) => {
+          this.pcmChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+        };
+        this.sourceNode.connect(this.processorNode);
+        this.processorNode.connect(this.audioCtx.destination);
+      } else {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { width: 640, height: 480 } });
+        this.previewEl.style.display = 'block'; this.previewEl.srcObject = this.stream; await this.previewEl.play();
+        this.chunks = [];
+        const mimeCandidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+        const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+        this.mediaRecorder = new MediaRecorder(this.stream, mimeType ? { mimeType } : undefined);
+        this.mediaRecorder.ondataavailable = e => { if (e.data.size) this.chunks.push(e.data); };
+        this.mediaRecorder.onstop = () => this._finalizeVideo();
+        this.mediaRecorder.start(250);
+      }
       this.startTs = Date.now();
       this.timerHandle = setInterval(() => this._tick(), 250);
       this.dot.classList.add('live');
@@ -526,29 +582,46 @@ class Recorder {
       toast(`Falha ao acessar ${this.kind === 'audio' ? 'microfone' : 'webcam'}: ${err.message}`);
     }
   }
-  stop() {
-    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
-    this.mediaRecorder.stop();
-    this.stream.getTracks().forEach(t => t.stop());
+  async stop() {
     clearInterval(this.timerHandle); this.timerHandle = null;
-  }
-  _finalize() {
-    const type = this.mediaRecorder.mimeType || (this.kind === 'audio' ? 'audio/webm' : 'video/webm');
-    this.blob = new Blob(this.chunks, { type });
-    const url = URL.createObjectURL(this.blob);
     if (this.kind === 'audio') {
+      if (!this.audioCtx) return;
+      this.processorNode.disconnect();
+      this.sourceNode.disconnect();
+      const fromRate = this.audioCtx.sampleRate;
+      this.stream.getTracks().forEach(t => t.stop());
+      await this.audioCtx.close();
+      this.audioCtx = null;
+      const total = this.pcmChunks.reduce((n, c) => n + c.length, 0);
+      const samples = new Float32Array(total);
+      let o = 0;
+      for (const c of this.pcmChunks) { samples.set(c, o); o += c.length; }
+      const resampled = await resampleTo16k(samples, fromRate);
+      this.blob = encodeWavPcm16(resampled, 16000);
       this.previewEl.style.display = 'block';
-      this.previewEl.src = url;
+      this.previewEl.src = URL.createObjectURL(this.blob);
+      this._finalizeUi();
     } else {
-      this.previewEl.srcObject = null;
-      this.previewEl.src = url; this.previewEl.muted = false; this.previewEl.controls = true;
+      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
+      this.mediaRecorder.stop();
+      this.stream.getTracks().forEach(t => t.stop());
     }
+  }
+  _finalizeVideo() {
+    const type = this.mediaRecorder.mimeType || 'video/webm';
+    this.blob = new Blob(this.chunks, { type });
+    this.previewEl.srcObject = null;
+    this.previewEl.src = URL.createObjectURL(this.blob);
+    this.previewEl.muted = false; this.previewEl.controls = true;
+    this._finalizeUi();
+  }
+  _finalizeUi() {
     this.dot.classList.remove('live');
     this.status.textContent = `Gravação pronta (${(this.blob.size/1024).toFixed(1)} KB)`;
     this.startBtn.disabled = false; this.stopBtn.disabled = true; this.clearBtn.disabled = false;
   }
   clear() {
-    this.blob = null; this.chunks = [];
+    this.blob = null; this.chunks = []; this.pcmChunks = [];
     if (this.kind === 'audio') { this.previewEl.src = ''; this.previewEl.style.display = 'none'; }
     else { this.previewEl.src = ''; this.previewEl.srcObject = null; }
     this.status.textContent = 'Pronto para gravar';
@@ -564,8 +637,7 @@ class Recorder {
   getBlob() { return this.blob; }
   getFileName() {
     if (!this.blob) return null;
-    const ext = this.blob.type.includes('webm') ? 'webm' : (this.blob.type.includes('ogg') ? 'ogg' : 'bin');
-    return `${this.kind}-gravacao.${ext}`;
+    return this.kind === 'audio' ? 'audio-gravacao.wav' : 'video-gravacao.webm';
   }
 }
 

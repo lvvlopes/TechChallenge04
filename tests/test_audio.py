@@ -32,3 +32,24 @@ def test_empty_text_is_neutral() -> None:
     insights = TextAnalytics().analyze("   ")
     assert insights.sentiment == "neutral"
     assert insights.critical_terms == []
+
+
+def test_ensure_wav_passthrough_for_wav(tmp_path) -> None:
+    """Arquivos .wav não são convertidos (retorna o próprio caminho)."""
+    from multimodal_monitor.audio_analysis.speech_to_text import SpeechToText
+
+    p = tmp_path / "consulta.wav"
+    p.write_bytes(b"RIFF....WAVE")
+    assert SpeechToText()._ensure_wav(p) == p
+
+
+def test_ensure_wav_without_ffmpeg_returns_original(tmp_path, monkeypatch) -> None:
+    """Sem ffmpeg no PATH, arquivos não-WAV passam adiante inalterados."""
+    import shutil
+
+    from multimodal_monitor.audio_analysis.speech_to_text import SpeechToText
+
+    monkeypatch.setattr(shutil, "which", lambda _cmd: None)
+    p = tmp_path / "gravacao.webm"
+    p.write_bytes(b"\x1aE\xdf\xa3")
+    assert SpeechToText()._ensure_wav(p) == p
