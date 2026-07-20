@@ -112,6 +112,13 @@ class Alert(BaseModel):
     message: str
     contributing_findings: list[Finding] = Field(default_factory=list)
     modalities: list[Modality] = Field(default_factory=list)
+    hypotheses: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Hipóteses interpretativas de apoio à decisão (NÃO são "
+            "diagnóstico); geradas por regras a partir dos achados."
+        ),
+    )
     timestamp: datetime = Field(default_factory=_utcnow)
 
     def to_human(self) -> str:
@@ -120,7 +127,11 @@ class Alert(BaseModel):
         body = self.message
         score = f"Score de risco: {self.risk_score:.2f}"
         mods = "Modalidades: " + ", ".join(m.value for m in self.modalities)
-        return "\n".join([head, body, score, mods])
+        lines = [head, body, score, mods]
+        if self.hypotheses:
+            lines.append("Hipóteses (apoio à decisão — não é diagnóstico):")
+            lines.extend(f"  • {h}" for h in self.hypotheses)
+        return "\n".join(lines)
 
 
 class VitalSignReading(BaseModel):

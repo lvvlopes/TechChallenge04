@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from ..logging_config import get_logger
 from ..schemas import Alert, Finding, Modality, ModalityResult, Severity
+from .hypotheses import generate_hypotheses
 
 logger = get_logger(__name__)
 
@@ -107,6 +108,11 @@ class MultimodalFusion:
             f"({', '.join(m.value for m in modalities)}). Principais achados: {reasons}."
         )
 
+        # hipóteses interpretativas (apoio à decisão) a partir de TODOS os
+        # achados das modalidades ativas — não apenas dos top selecionados.
+        all_findings = [f for r in results for f in r.findings]
+        hypotheses = generate_hypotheses(all_findings)
+
         return Alert(
             patient_id=patient_id,
             severity=severity,
@@ -115,6 +121,7 @@ class MultimodalFusion:
             message=message,
             contributing_findings=top_findings[:6],
             modalities=modalities,
+            hypotheses=hypotheses,
         )
 
     @staticmethod

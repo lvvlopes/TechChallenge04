@@ -444,6 +444,11 @@
     <div class="alert-body">
       <h2 class="alert-title" id="alert-title">Nenhum alerta ativo</h2>
       <div class="alert-message" id="alert-message">Execute um ciclo de monitoramento para avaliar o paciente.</div>
+      <div id="alert-hypotheses" style="display:none; margin-top:12px; padding:12px 14px; background:rgba(255,255,255,.65); border:1px solid var(--border); border-radius:8px;">
+        <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); margin-bottom:8px;">Hipóteses · apoio à decisão</div>
+        <ul id="alert-hypotheses-list" style="margin:0; padding-left:18px; font-size:12.5px; color:var(--text-2); line-height:1.55;"></ul>
+        <div style="margin-top:8px; font-size:11px; color:var(--text-3); font-style:italic;">Geradas automaticamente por regras — não substituem avaliação médica.</div>
+      </div>
       <div class="alert-meta" id="alert-meta"></div>
     </div>
   </div>
@@ -728,11 +733,23 @@ function renderAlert(alert, sev) {
   const banner = $('#alert-banner');
   banner.style.display = 'flex';
   banner.classList.remove('severity-critical','severity-high','severity-medium','severity-low');
+  const hypBox = $('#alert-hypotheses');
+  const hypList = $('#alert-hypotheses-list');
+  hypBox.style.display = 'none';
+  hypList.innerHTML = '';
   if (!alert) {
     $('#alert-title').textContent = 'Sem alerta — paciente dentro dos padrões esperados';
     $('#alert-message').textContent = 'Nenhum sinal de risco corroborado no ciclo atual.';
     $('#alert-meta').innerHTML = '<span class="sev-badge sev-info">estável</span>';
     return;
+  }
+  if (alert.hypotheses && alert.hypotheses.length) {
+    alert.hypotheses.forEach(h => {
+      const li = document.createElement('li');
+      li.textContent = h;
+      hypList.appendChild(li);
+    });
+    hypBox.style.display = 'block';
   }
   banner.classList.add('severity-' + alert.severity);
   $('#alert-title').textContent = alert.title;
