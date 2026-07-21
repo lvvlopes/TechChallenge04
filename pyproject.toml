@@ -40,6 +40,11 @@ mmonitor = "multimodal_monitor.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# As páginas servidas por api/main.py (dashboard, intake) são arquivos de dados:
+# sem isto o setuptools não as instala e as rotas HTML respondem 500.
+[tool.setuptools.package-data]
+"multimodal_monitor.api" = ["static/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
