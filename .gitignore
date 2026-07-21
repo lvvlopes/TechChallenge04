@@ -42,6 +42,7 @@ htmlcov/
 *.wav
 *.mp3
 !data/samples/**/*.wav
+!data/samples/video_teste.mp4
 
 # Generated artifacts / outputs
 outputs/
