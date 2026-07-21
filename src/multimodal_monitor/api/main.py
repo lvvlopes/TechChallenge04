@@ -180,7 +180,15 @@ def monitor(req: MonitorRequest) -> dict:
         text_result = ModalityResult(
             modality=Modality.AUDIO,
             findings=findings,
-            summary=f"Sentimento: {insights.sentiment} ({insights.sentiment_score:+.2f})",
+            summary=(
+                f"Sentimento: {insights.sentiment} ({insights.sentiment_score:+.2f}) "
+                f"[{insights.source}]"
+            ),
+            metadata={
+                "sentiment": insights.sentiment,
+                "sentiment_score": insights.sentiment_score,
+                "sentiment_source": insights.source,
+            },
         )
         results = results + [text_result]
 
@@ -195,6 +203,7 @@ def monitor(req: MonitorRequest) -> dict:
                 "risk_score": r.risk_score,
                 "summary": r.summary,
                 "findings": [f.model_dump(mode="json") for f in r.findings],
+                "metadata": r.metadata,
             }
             for r in results
         },

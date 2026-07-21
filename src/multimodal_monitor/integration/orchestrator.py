@@ -60,6 +60,7 @@ class MonitoringReport:
                     "risk_score": r.risk_score,
                     "summary": r.summary,
                     "findings": [f.model_dump(mode="json") for f in r.findings],
+                    "metadata": r.metadata,
                 }
                 for r in self.modality_results
             },

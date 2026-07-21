@@ -72,5 +72,8 @@ class AudioAnalysisPipeline:
                 "transcript_source": transcription.source,
                 "sentiment": insights.sentiment,
                 "sentiment_score": insights.sentiment_score,
+                # "azure" | "mock": permite auditar se a análise veio do serviço
+                # em nuvem ou do fallback offline, já que a degradação é silenciosa.
+                "sentiment_source": insights.source,
             },
         )
