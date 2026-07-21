@@ -35,10 +35,12 @@ Executar em <https://shell.azure.com> (bash). Dispensa Azure CLI e Docker locais
 # --- Parâmetros ---
 RG=rg-tc4-multimodal
 LOC=brazilsouth
-ACR=acrtc4multimodal          # precisa ser único globalmente
+ACR=acrtc4$RANDOM             # nome do ACR é único globalmente; sufixo evita colisão
 APP=ca-tc4-multimodal
 ENVNAME=cae-tc4-multimodal
 REPO=https://github.com/lvvlopes/TechChallenge04.git
+
+echo "ACR escolhido: $ACR"    # anote — usado nos comandos seguintes
 
 # --- Provedores ---
 az provider register -n Microsoft.App --wait
