@@ -1,0 +1,43 @@
+# Contexto de build enxuto — mantém a imagem pequena e o upload rápido.
+.git/
+.venv/
+venv/
+env/
+ENV/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Segredos nunca entram na imagem (vão como env vars no Container Apps).
+.env
+.env.*
+!.env.example
+
+# Dados e mídia de amostra não são necessários em runtime.
+data/
+notebooks/
+tests/
+docs/
+*.pdf
+*.mp4
+*.wav
+*.mp3
+*.pt
+*.onnx
+
+outputs/
+reports/
+*.log
+
+.vscode/
+.idea/
+.DS_Store
