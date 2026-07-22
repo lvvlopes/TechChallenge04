@@ -69,10 +69,13 @@ com `pip install -r requirements.txt` executado.
 ## 6. Extras implementados (além do exigido)
 
 - **Dashboard clínico web interativo** (`/`) — gauge de risco, sparklines de sinais vitais, feed de achados filtrável por severidade, transcrição com realce de termos.
-- **Tela de captura clínica** (`/intake`) — formulário multimodal com gravação ao vivo de microfone/webcam e resultado imediato.
+- **Coorte de 20 pacientes** (`/patients`) — seleção com busca/filtro e análise automática "amarrada" ao ID (vitais + áudio + vídeo + prescrições), com **player de vídeo real** e **áudio TTS pt-BR** por paciente.
+- **Tela de captura clínica** (`/intake`) — formulário multimodal com gravação ao vivo de microfone (WAV 16 kHz)/webcam e resultado imediato.
 - **Hipóteses interpretativas** no alerta — apoio à decisão por regras ("compatível com: ..."), com disclaimer explícito de que não substituem avaliação médica.
+- **Modelagem clínica calibrada** — significância estatística **e** clínica (z-score com variação absoluta mínima; IsolationForest gated por faixa normal): estável → 0.00, crítico → 1.00.
 - **Degradação graciosa** — sem GPU/credenciais Azure, todo o pipeline roda offline (modo mock), garantindo reprodutibilidade da correção.
-- **Qualidade de engenharia** — 36 testes automatizados (pytest), lint (ruff), type hints (mypy), CI GitHub Actions em Python 3.10–3.12.
+- **Deploy em nuvem** — `Dockerfile` + guia para Azure Container Apps (`docs/deploy_azure.md`).
+- **Qualidade de engenharia** — 41 testes automatizados (pytest), lint (ruff), type hints (mypy), CI GitHub Actions em Python 3.10–3.12.
 
 ---
 
@@ -83,18 +86,19 @@ com `pip install -r requirements.txt` executado.
 python -m venv .venv && .venv\Scripts\activate    # Windows
 pip install -r requirements.txt
 
-# 2. Suite de testes (36 casos)
+# 2. Suite de testes (41 casos)
 pytest
 
 # 3. Demonstração ponta-a-ponta no terminal
 python scripts/run_demo.py
 #    → alerta CRÍTICO com 4 modalidades, score 1.00
 
-# 4. Dashboard + API
+# 4. Telas web + API
 uvicorn multimodal_monitor.api.main:app --app-dir src
-#    → http://127.0.0.1:8000/        (dashboard)
-#    → http://127.0.0.1:8000/intake  (captura clínica)
-#    → http://127.0.0.1:8000/docs    (Swagger)
+#    → http://127.0.0.1:8000/          (dashboard de monitoramento)
+#    → http://127.0.0.1:8000/patients  (coorte: escolher paciente e analisar)
+#    → http://127.0.0.1:8000/intake    (captura clínica multimodal)
+#    → http://127.0.0.1:8000/docs      (Swagger)
 ```
 
 > Para testar a integração Azure real: copiar `.env.example` → `.env` e

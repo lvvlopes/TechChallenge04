@@ -115,6 +115,14 @@ alterações vocais/sentimento indicativos de risco.
 3. **IsolationForest** (multivariado) — captura **combinações atípicas** de
    sinais que, isoladamente, pareceriam normais.
 
+**Significância estatística E clínica.** Para evitar falsos positivos por ruído
+(um evento estatisticamente raro mas fisiologicamente irrelevante), os métodos
+estatísticos exigem *duas* condições simultâneas: o z-score só sinaliza se, além
+de `|z| ≥ 3.5`, a **variação absoluta** superar um mínimo clínico por sinal
+(ex.: 15 bpm de FC, 3% de SpO2); o IsolationForest só reporta o padrão
+multivariado se ao menos um sinal estiver **fora da faixa normal**. Resultado:
+paciente estável → score 0.00 (sem alerta); crítico → 1.00.
+
 **b) Prescrições** (`prescriptions.py`) — regras clínicas sobre a evolução:
 dose acima da máxima diária de referência, **salto de dose** acima de fator
 seguro, **interações medicamentosas** conhecidas e reintrodução de medicamento
@@ -148,9 +156,31 @@ configuráveis via `ALERT_CHANNEL`:
 - **file** — `outputs/alerts.jsonl` (auditoria/persistência);
 - **webhook** — POST JSON para Microsoft Teams / Slack (integração real).
 
+Cada `Alert` carrega ainda **hipóteses interpretativas de apoio à decisão**
+(`integration/hypotheses.py`): regras que mapeiam padrões dos achados para
+possíveis causas ("compatível com: …"), incluindo combinações multimodais
+(ex.: *dispneia relatada + dessaturação objetiva → priorizar avaliação
+respiratória*). **Não é diagnóstico** — todas as hipóteses vêm com o aviso de
+que não substituem a avaliação médica, mantendo o sistema na categoria de
+apoio à decisão clínica (CDSS).
+
 A **API REST** (`api/main.py`, FastAPI) expõe endpoints para monitoramento
-*near real-time* (`/monitor`, `/monitor/vitals`, `/monitor/prescriptions`) e um
-`/health` que reporta as capacidades disponíveis (Azure/visão).
+*near real-time* (`/monitor`, `/monitor/vitals`, `/monitor/prescriptions`,
+`/intake`), a coorte de pacientes (`/api/patients`, `/api/patients/{id}/analyze`)
+e um `/health` que reporta as capacidades disponíveis (Azure/visão). Três telas
+web (dashboard `/`, coorte `/patients`, captura `/intake`) tornam a operação
+visual.
+
+### 5.1 Coorte de pacientes e "amarração" por ID
+
+Uma coorte de 20 pacientes sintéticos é persistida em `data/patients/`, cada um
+com dados coerentes com seu cenário (estável/crítico) e "amarrados" ao ID:
+sinais vitais, prescrições, **áudio real** (sintetizado por TTS em pt-BR e
+gravado em WAV 16 kHz mono, transcrito pelo Azure Speech quando ativo) e sinais
+de pose. Ao selecionar um paciente na tela `/patients`, o sistema carrega
+automaticamente todos esses dados e executa o pipeline multimodal. Pacientes
+com um `video_teste.mp4` na pasta têm a **pose extraída do vídeo real** e o
+vídeo é exibido na tela.
 
 ## 6. Resultados e exemplos de anomalias detectadas
 
@@ -159,10 +189,10 @@ plantadas nas quatro fontes. Resultado observado:
 
 | Modalidade | Risco | Achados | Exemplo de anomalia detectada |
 | ---------- | ----- | ------- | ----------------------------- |
-| Sinais vitais | 1.00 | 69 | Dessaturação de SpO2 (96→85%), taquicardia (135 bpm), pico hipertensivo (185 mmHg) |
-| Prescrições | 1.00 | 4 | Salto de dose de dipirona (1000→3000 mg); interação warfarina + ibuprofeno |
-| Áudio | 1.00 | 5 | Termos "dor no peito" (CRÍTICO) e "falta de ar" (HIGH); sentimento negativo |
-| Vídeo | 1.00 | 8 | Imobilidade prolongada; pico de movimento (queda); desvio postural |
+| Sinais vitais | 1.00 | ~50 | Dessaturação de SpO2 (96→85%), taquicardia (135 bpm), pico hipertensivo (185 mmHg) |
+| Prescrições | 1.00 | 3 | Salto de dose de dipirona (1000→3000 mg); interação warfarina + ibuprofeno |
+| Áudio | 1.00 | 4–5 | Termos "dor no peito" (CRÍTICO) e "falta de ar" (HIGH); sentimento negativo |
+| Vídeo | 1.00 | 8–46 | Desvio postural, imobilidade e picos (8 na pose sintética; ~46 no vídeo real) |
 
 **Score de risco multimodal = 1.00 → alerta CRÍTICO** despachado com mensagem:
 
@@ -171,7 +201,7 @@ plantadas nas quatro fontes. Resultado observado:
 > Pressão sistólica acima do esperado; Termo crítico 'dor no peito'; Pico
 > abrupto de movimentação…"*
 
-A suíte de testes (`pytest`, 21 casos) valida cada detector, a fusão (incluindo
+A suíte de testes (`pytest`, 41 casos) valida cada detector, a fusão (incluindo
 o efeito de corroboração e limites do score) e o **fluxo ponta-a-ponta**.
 
 ## 7. Reprodutibilidade

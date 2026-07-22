@@ -148,15 +148,33 @@ python -c "from multimodal_monitor.audio_analysis import TextAnalytics; print(Te
 
 ---
 
+## Apoio à decisão — hipóteses interpretativas
+
+| Onde | Detalhe |
+|---|---|
+| [`integration/hypotheses.py`](../src/multimodal_monitor/integration/hypotheses.py) | `generate_hypotheses()` — mapeia padrões dos achados para hipóteses de causa possível ("compatível com: …"), com combos multimodais (ex.: dispneia relatada + dessaturação objetiva). Sempre com disclaimer de que não substituem avaliação médica. |
+| [`integration/fusion.py`](../src/multimodal_monitor/integration/fusion.py) | O `Alert` carrega o campo `hypotheses`, preenchido a partir de todos os achados. |
+
+## Coorte de pacientes — seleção e análise por ID
+
+| Onde | Detalhe |
+|---|---|
+| [`cohort.py`](../src/multimodal_monitor/cohort.py) | `PatientCohort` — lê o manifesto `data/patients/cohort.json` e monta o `MonitoringInput` de um paciente a partir dos arquivos "amarrados" ao ID (vitais, prescrições, áudio, pose). |
+| [`scripts/generate_patient_cohort.py`](../scripts/generate_patient_cohort.py) | Gera 20 pacientes (10 críticos, 10 estáveis) reprodutíveis. |
+| [`scripts/generate_patient_audio.ps1`](../scripts/generate_patient_audio.ps1) | Gera o `consulta.wav` real de cada paciente (voz SAPI pt-BR + WAV 16 kHz mono). |
+| [`scripts/extract_patient_pose.py`](../scripts/extract_patient_pose.py) | Extrai a pose real de `video_teste.mp4` (quando presente na pasta) para `pose_frames.csv`. |
+| `api/main.py` | `GET /api/patients` (lista), `POST /api/patients/{id}/analyze` (análise por ID), `GET /api/patients/{id}/video` (serve o vídeo real). |
+
 ## Camada de integração e interfaces
 
 | Componente | Onde | Papel |
 |---|---|---|
-| Orquestrador | [`integration/orchestrator.py:87`](../src/multimodal_monitor/integration/orchestrator.py) | `PatientMonitor.run()` — executa todas as modalidades e funde |
-| Contrato de domínio | [`schemas.py`](../src/multimodal_monitor/schemas.py) | `Finding`, `ModalityResult`, `Alert`, `Severity` |
-| API REST | [`api/main.py`](../src/multimodal_monitor/api/main.py) | Endpoints `/health` (112), `/monitor` (150), `/intake` (347) |
-| Dashboard web | [`api/static/dashboard.html`](../src/multimodal_monitor/api/static/dashboard.html) | Visualização do monitoramento |
-| Captura clínica | [`api/static/intake.html`](../src/multimodal_monitor/api/static/intake.html) | Formulário multimodal com gravação ao vivo |
+| Orquestrador | [`integration/orchestrator.py`](../src/multimodal_monitor/integration/orchestrator.py) | `PatientMonitor.run()` — executa todas as modalidades e funde |
+| Contrato de domínio | [`schemas.py`](../src/multimodal_monitor/schemas.py) | `Finding`, `ModalityResult`, `Alert` (com `hypotheses`), `Severity` |
+| API REST | [`api/main.py`](../src/multimodal_monitor/api/main.py) | `/health`, `/monitor*`, `/demo/run`, `/intake`, `/api/patients*` |
+| Dashboard web | [`api/static/dashboard.html`](../src/multimodal_monitor/api/static/dashboard.html) | Monitoramento (crítico × estável) |
+| Coorte web | [`api/static/patients.html`](../src/multimodal_monitor/api/static/patients.html) | Seleção e análise dos 20 pacientes, com player de vídeo |
+| Captura clínica | [`api/static/intake.html`](../src/multimodal_monitor/api/static/intake.html) | Formulário multimodal com gravação de mic/webcam |
 | Dados sintéticos | [`synthetic.py`](../src/multimodal_monitor/synthetic.py) | Geradores reprodutíveis com anomalias plantadas |
 
 ---

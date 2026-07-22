@@ -24,6 +24,13 @@ arquitetura).
 achados padronizados. Uma camada de fusão multimodal combina esses achados num
 score de risco e dispara o alerta clínico."*
 
+> 💡 **Dica de demonstração:** a tela **`/patients`** (coorte de 20 pacientes)
+> é o caminho mais forte para o vídeo — cada paciente já tem áudio, vídeo,
+> vitais e prescrições "amarrados" ao ID. Selecionar o **PAC-001** (crítico,
+> com vídeo real 🎥) demonstra as 3 modalidades + fusão + alerta numa única
+> ação; um paciente **estável** ao lado mostra o contraste (score 0.00). Os
+> comandos de terminal abaixo continuam úteis para "mostrar o código rodando".
+
 ---
 
 ## Bloco 1 — Análise de Vídeo / RF01 (1:00 – 4:00)
@@ -189,11 +196,17 @@ pytest -q
    ```bash
    uvicorn multimodal_monitor.api.main:app --reload --app-dir src
    ```
-3. **Vídeo de teste** em `data/samples/video_teste.mp4`.
-4. **Microfone e webcam** testados e com permissão concedida no navegador.
-5. **Terminal com fonte grande** (para legibilidade na gravação).
-6. **Fechar abas/notificações** que possam poluir a tela.
-7. **Ensaio do áudio:** treine a fala do paciente uma vez para sair natural.
+3. **Coorte gerada** — `python scripts/generate_patient_cohort.py`, áudios com
+   `powershell -File scripts/generate_patient_audio.ps1`, e o vídeo do PAC-001:
+   ```bash
+   cp data/samples/video_teste.mp4 data/patients/PAC-001/
+   python scripts/extract_patient_pose.py
+   ```
+4. **Vídeo de teste** em `data/samples/video_teste.mp4`.
+5. **Microfone e webcam** testados e com permissão concedida no navegador.
+6. **Terminal com fonte grande** (para legibilidade na gravação).
+7. **Fechar abas/notificações** que possam poluir a tela.
+8. **Ensaio do áudio:** treine a fala do paciente uma vez para sair natural.
 
 ## Mapa requisito → bloco do vídeo
 
