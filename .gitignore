@@ -22,6 +22,10 @@ ENV/
 .env
 .env.*
 !.env.example
+# Runbook local de deploy com chaves Azure em texto puro — NUNCA versionar
+config.txt
+secrets.txt
+*.secrets
 
 # Test / coverage
 .pytest_cache/
