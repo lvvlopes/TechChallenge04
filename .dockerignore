@@ -22,14 +22,15 @@ htmlcov/
 .env.*
 !.env.example
 
-# Dados e mídia de amostra não são necessários em runtime.
-data/
+# Dados e mídia de amostra não são necessários em runtime — exceto a coorte
+# sintética, que a página /patients lê em runtime (ver COPY no Dockerfile).
+data/*
+!data/patients
 notebooks/
 tests/
 docs/
 *.pdf
 *.mp4
-*.wav
 *.mp3
 *.pt
 *.onnx
