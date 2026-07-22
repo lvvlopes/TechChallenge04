@@ -46,6 +46,19 @@ _LABELS = {
     "temperature": "temperatura",
 }
 
+# Variação absoluta mínima para que um desvio de z-score seja clinicamente
+# relevante. Evita falsos positivos: uma oscilação estatisticamente "rara"
+# (alto z) mas fisiologicamente irrelevante (ex.: SpO2 variando 1,5%) é ruído,
+# não anomalia. Exige-se significância estatística E clínica simultaneamente.
+MIN_ABS_DELTA: dict[str, float] = {
+    "heart_rate": 15.0,       # bpm
+    "systolic_bp": 20.0,      # mmHg
+    "diastolic_bp": 15.0,     # mmHg
+    "spo2": 3.0,              # %
+    "respiratory_rate": 4.0,  # rpm
+    "temperature": 0.6,       # °C
+}
+
 
 @dataclass
 class VitalsAnomalyDetector:
@@ -151,11 +164,16 @@ class VitalsAnomalyDetector:
             mean = roll.mean().shift(1)
             std = roll.std().shift(1)
             z = (series - mean) / std.replace(0, np.nan)
+            abs_delta = (series - mean).abs()
+            min_delta = MIN_ABS_DELTA.get(col, 0.0)
 
             for idx, zval in z.items():
                 if pd.isna(zval) or abs(zval) < self.zscore_threshold:
                     continue
-                # não duplicar quando a regra fisiológica já é crítica
+                # significância clínica: além do z alto, a variação absoluta
+                # precisa ser relevante (senão é ruído sobre série estável)
+                if abs_delta[idx] < min_delta:
+                    continue
                 findings.append(
                     Finding(
                         modality=Modality.VITALS,
@@ -211,6 +229,11 @@ class VitalsAnomalyDetector:
             if score < cutoff:
                 continue
             snapshot = {c: float(features.iloc[idx][c]) for c in self._feature_columns}
+            # gate de significância clínica: o padrão multivariado só é
+            # reportado se ao menos um sinal estiver fora da faixa normal —
+            # evita "anomalias" inventadas em séries puramente ruidosas.
+            if not self._any_out_of_band(snapshot):
+                continue
             findings.append(
                 Finding(
                     modality=Modality.VITALS,
@@ -225,6 +248,18 @@ class VitalsAnomalyDetector:
                 )
             )
         return findings
+
+    @staticmethod
+    def _any_out_of_band(snapshot: dict[str, float]) -> bool:
+        """True se algum sinal do snapshot estiver fora da faixa normal (low..high)."""
+        for col, value in snapshot.items():
+            rng = PHYSIOLOGICAL_RANGES.get(col)
+            if rng is None:
+                continue
+            _low_crit, low, high, _high_crit = rng
+            if value < low or value > high:
+                return True
+        return False
 
     @staticmethod
     def _normalize(x: np.ndarray) -> np.ndarray:

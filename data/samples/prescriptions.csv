@@ -1,6 +1,7 @@
 timestamp,drug,dose_mg,action
-2026-07-02 15:25:21.575464+00:00,dipirona,1000.0,prescribe
-2026-07-02 17:25:21.575464+00:00,amoxicilina,500.0,prescribe
-2026-07-02 19:25:21.575464+00:00,warfarina,5.0,prescribe
-2026-07-02 21:25:21.575464+00:00,dipirona,3000.0,prescribe
-2026-07-02 22:25:21.575464+00:00,ibuprofeno,600.0,prescribe
+2026-07-21 14:06:54.457362+00:00,paracetamol,750.0,prescribe
+2026-07-21 16:06:54.457362+00:00,amoxicilina,500.0,prescribe
+2026-07-21 18:06:54.457362+00:00,dipirona,1000.0,prescribe
+2026-07-21 20:06:54.457362+00:00,dipirona,3000.0,prescribe
+2026-07-21 20:36:54.457362+00:00,warfarina,5.0,prescribe
+2026-07-21 21:06:54.457362+00:00,ibuprofeno,600.0,prescribe

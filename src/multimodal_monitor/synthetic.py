@@ -32,12 +32,14 @@ def generate_vitals(
     t0 = datetime.now(timezone.utc) - timedelta(seconds=n * interval_seconds)
     timestamps = [t0 + timedelta(seconds=i * interval_seconds) for i in range(n)]
 
-    # Ruído calibrado para variabilidade fisiológica típica de leito de UTI
-    hr = rng.normal(75, 2.5, n)
-    sbp = rng.normal(120, 4, n)
-    dbp = rng.normal(78, 3, n)
+    # Ruído calibrado para variabilidade fisiológica típica de leito de UTI.
+    # Baselines e desvios mantêm folga confortável até as bordas clínicas para
+    # que um paciente estável não cruze limiares por ruído estatístico.
+    hr = rng.normal(74, 2.0, n)
+    sbp = rng.normal(118, 4, n)
+    dbp = rng.normal(76, 2.2, n)
     spo2 = rng.normal(97, 0.5, n)
-    rr = rng.normal(16, 1.0, n)
+    rr = rng.normal(15, 0.8, n)
     temp = rng.normal(36.6, 0.15, n)
 
     if inject_anomalies and n >= 200:
@@ -133,3 +135,45 @@ SAMPLE_TRANSCRIPTS = {
         "consegui dormir tranquilo. Estou mais disposto e animado com a recuperação."
     ),
 }
+
+# Variedade de falas para a coorte de pacientes (mantêm coerência clínica com
+# o cenário — os textos "críticos" contêm termos de risco, os "estáveis" não).
+CRITICAL_TRANSCRIPTS = [
+    SAMPLE_TRANSCRIPTS["critico"],
+    (
+        "Estou com muita dificuldade para respirar e uma dor no peito muito forte. "
+        "Também sinto o coração acelerado e uma fraqueza que não passa. Tenho medo."
+    ),
+    (
+        "Tive um desmaio agora há pouco, doutor. Estou com tontura, dormência no "
+        "braço e me sinto muito confuso. A falta de ar piorou bastante."
+    ),
+    (
+        "A dor no peito voltou e está pior. Estou com muita fadiga, sinto palpitação "
+        "e um cansaço enorme mesmo parado. Não estou conseguindo respirar direito."
+    ),
+    (
+        "Doutor, me sinto péssimo. Muita falta de ar, sangramento na gengiva e uma "
+        "fraqueza que me impede de levantar. Estou muito preocupado e com febre."
+    ),
+]
+
+STABLE_TRANSCRIPTS = [
+    SAMPLE_TRANSCRIPTS["estavel"],
+    (
+        "Hoje acordei bem disposto, doutor. Consegui caminhar um pouco e me alimentei "
+        "sem dificuldade. Estou tranquilo e otimista com a alta."
+    ),
+    (
+        "Está tudo melhor, sem dores. Dormi bem a noite toda e me sinto recuperando "
+        "as forças. Estou animado e estável."
+    ),
+    (
+        "Me sinto bem, sem queixas hoje. A respiração está tranquila e o apetite "
+        "voltou. Obrigado pelo cuidado, estou bem melhor."
+    ),
+    (
+        "Doutor, estou ótimo. Consegui fazer os exercícios da fisioterapia "
+        "tranquilamente e me alimentei bem. Me sinto forte e recuperado."
+    ),
+]
