@@ -28,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..anomaly_detection.prescriptions import PrescriptionEvent
+from ..cohort import PatientCohort
 from ..config import get_settings
 from ..integration.orchestrator import MonitoringInput, PatientMonitor
 from ..schemas import Finding, Modality, ModalityResult, VitalSignReading
@@ -67,6 +68,12 @@ def dashboard() -> FileResponse:
 def intake_page() -> FileResponse:
     """Serve a tela de captura clínica (formulário multimodal com gravação)."""
     return FileResponse(_STATIC_DIR / "intake.html")
+
+
+@app.get("/patients", include_in_schema=False)
+def patients_page() -> FileResponse:
+    """Serve a tela de seleção e análise de pacientes da coorte."""
+    return FileResponse(_STATIC_DIR / "patients.html")
 
 
 # --------------------------------------------------------------------------- #
@@ -485,3 +492,59 @@ async def _intake_impl(
             for r in all_results
         },
     }
+
+
+# --------------------------------------------------------------------------- #
+# Coorte de pacientes — seleção e análise com "amarração" ao ID do paciente
+# --------------------------------------------------------------------------- #
+def _get_cohort() -> PatientCohort:
+    return PatientCohort()
+
+
+@app.get("/api/patients")
+def list_patients() -> dict:
+    """Lista os pacientes da coorte persistida (metadados, sem dados brutos)."""
+    cohort = _get_cohort()
+    if not cohort.available:
+        return {"available": False, "patients": []}
+    return {
+        "available": True,
+        "patients": [p.to_dict() for p in cohort.list_patients()],
+    }
+
+
+class PatientAnalyzeRequest(BaseModel):
+    """Parâmetros da análise de um paciente da coorte."""
+
+    use_real_video: bool = Field(
+        default=False,
+        description=(
+            "Se True e o paciente tiver vídeo vinculado, processa o arquivo de "
+            "vídeo real (MediaPipe + YOLOv8); caso contrário usa a pose "
+            "pré-computada (mais rápido)."
+        ),
+    )
+
+
+@app.post("/api/patients/{patient_id}/analyze")
+def analyze_patient(patient_id: str, req: PatientAnalyzeRequest | None = None) -> dict:
+    """Carrega automaticamente os dados vinculados ao paciente e os analisa.
+
+    "Amarração": a partir do ``patient_id``, o sistema busca na coorte os
+    sinais vitais, prescrições, transcrição de consulta e sinais de vídeo/pose
+    já persistidos e executa o pipeline multimodal completo.
+    """
+    cohort = _get_cohort()
+    record = cohort.get(patient_id)
+    if record is None:
+        raise HTTPException(404, f"Paciente não encontrado na coorte: {patient_id}")
+
+    use_real_video = bool(req and req.use_real_video)
+    data = cohort.load_input(patient_id, use_real_video=use_real_video)
+
+    monitor = _get_monitor()
+    report = monitor.run(data)
+    payload = report.as_dict()
+    payload["patient"] = record.to_dict()
+    payload["used_real_video"] = use_real_video
+    return payload

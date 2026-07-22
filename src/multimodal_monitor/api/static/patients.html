@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multimodal Monitor · Pacientes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#fff; --panel-2:#fbfbfc; --border:#e6e8ec; --border-strong:#d5d9df;
+    --text:#0f172a; --text-2:#475569; --text-3:#94a3b8;
+    --accent:#0d9488; --accent-2:#14b8a6; --accent-soft:#ccfbf1;
+    --sev-info:#64748b; --sev-low:#0891b2; --sev-medium:#ca8a04; --sev-high:#ea580c; --sev-critical:#dc2626;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.04); --shadow:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+    --radius:12px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box;} html,body{margin:0;padding:0;}
+  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+
+  header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:600;letter-spacing:-0.01em;}
+  .brand-logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px;box-shadow:var(--shadow);}
+  .brand-title{font-size:15px;} .brand-sub{font-size:12px;color:var(--text-3);font-weight:500;}
+  nav.tabs{display:inline-flex;padding:3px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;}
+  nav.tabs a{padding:6px 14px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--text-2);text-decoration:none;}
+  nav.tabs a.active{background:var(--panel);color:var(--text);box-shadow:var(--shadow-sm);}
+
+  main{padding:24px 28px 60px;max-width:1500px;margin:0 auto;display:grid;grid-template-columns:420px 1fr;gap:24px;}
+  @media(max-width:1100px){main{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);}
+  .card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin:0 0 14px;}
+
+  .controls{display:flex;gap:8px;margin-bottom:14px;}
+  input[type=search]{flex:1;padding:8px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;}
+  input[type=search]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .filter-chip{padding:6px 12px;border-radius:var(--radius-sm);background:var(--panel-2);border:1px solid var(--border);font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer;user-select:none;}
+  .filter-chip.active{background:var(--text);color:#fff;border-color:var(--text);}
+
+  .plist{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 240px);overflow-y:auto;padding-right:4px;}
+  .plist::-webkit-scrollbar{width:6px;} .plist::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;}
+  .prow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--panel);transition:all .12s;}
+  .prow:hover{border-color:var(--text-3);background:var(--panel-2);}
+  .prow.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .pavatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#cbd5e1,#94a3b8);display:grid;place-items:center;font-weight:600;color:#fff;font-size:13px;}
+  .prow.crit .pavatar{background:linear-gradient(135deg,#fca5a5,#dc2626);}
+  .prow.stab .pavatar{background:linear-gradient(135deg,#6ee7b7,#059669);}
+  .pname{font-weight:600;font-size:13.5px;} .pmeta{font-size:11.5px;color:var(--text-3);}
+  .pid{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-3);}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+  .badge.crit{color:var(--sev-critical);background:#fee2e2;} .badge.stab{color:#059669;background:#d1fae5;}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border-strong);background:var(--panel);color:var(--text);transition:all .15s;}
+  .btn:hover{background:var(--panel-2);} .btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);} .btn-accent:hover{background:#0f766e;}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;} .btn-sm{padding:5px 10px;font-size:12px;}
+
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2);cursor:pointer;user-select:none;}
+
+  /* resultado */
+  .result-empty{padding:60px 20px;text-align:center;color:var(--text-3);font-size:13px;}
+  .result-empty svg{opacity:.4;margin-bottom:12px;}
+  .score-hero{padding:22px;text-align:center;border-radius:var(--radius);background:var(--panel-2);border:1px solid var(--border);margin-bottom:16px;}
+  .score-hero.sev-critical{background:linear-gradient(135deg,#fef2f2,var(--panel));border-color:#fecaca;}
+  .score-hero.sev-high{background:linear-gradient(135deg,#fff7ed,var(--panel));border-color:#fed7aa;}
+  .score-hero.sev-medium{background:linear-gradient(135deg,#fefce8,var(--panel));border-color:#fef08a;}
+  .score-hero.sev-low{background:linear-gradient(135deg,#ecfeff,var(--panel));border-color:#a5f3fc;}
+  .score-hero.sev-info{background:linear-gradient(135deg,#f0fdf4,var(--panel));border-color:#bbf7d0;}
+  .score-value{font-size:46px;font-weight:700;letter-spacing:-.03em;margin:0;font-variant-numeric:tabular-nums;}
+  .score-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);font-weight:600;margin-top:4px;}
+  .sev-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:10px;}
+  .sev-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .sev-info{color:var(--sev-info);background:#f1f5f9;} .sev-low{color:var(--sev-low);background:#ecfeff;} .sev-medium{color:var(--sev-medium);background:#fef9c3;} .sev-high{color:var(--sev-high);background:#ffedd5;} .sev-critical{color:var(--sev-critical);background:#fee2e2;}
+
+  .rsec{padding:16px 18px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);margin-bottom:12px;}
+  .rsec h4{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);font-weight:600;}
+  .modrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .modrow:last-child{border-bottom:0;}
+  .bar-track{width:100px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+  .finding{padding:10px 12px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;font-size:12.5px;display:grid;grid-template-columns:3px 1fr auto;gap:10px;align-items:start;}
+  .fbar{align-self:stretch;border-radius:2px;background:var(--sev-info);}
+  .finding.sev-critical .fbar{background:var(--sev-critical);} .finding.sev-high .fbar{background:var(--sev-high);} .finding.sev-medium .fbar{background:var(--sev-medium);} .finding.sev-low .fbar{background:var(--sev-low);}
+  .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--panel);border:1px solid var(--border);font-size:11px;font-weight:500;color:var(--text-2);}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px;}
+  .kv dt{color:var(--text-3);} .kv dd{margin:0;font-weight:500;}
+  .transcript{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;line-height:1.5;color:var(--text-2);white-space:pre-wrap;}
+  mark{background:#fee2e2;color:var(--sev-critical);padding:1px 3px;border-radius:3px;}
+  mark.sev-high{background:#ffedd5;color:var(--sev-high);} mark.sev-medium{background:#fef9c3;color:var(--sev-medium);}
+  .hyp{margin-top:10px;padding:10px 12px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;}
+  .hyp ul{margin:6px 0 0;padding-left:16px;font-size:12px;color:var(--text-2);line-height:1.5;}
+  .spin{animation:spin 1s linear infinite;} @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">M</div>
+    <div><div class="brand-title">Multimodal Monitor</div><div class="brand-sub">Coorte de pacientes · FIAP TC Fase 4</div></div>
+  </div>
+  <nav class="tabs">
+    <a href="/">Monitoramento</a>
+    <a href="/intake">Nova admissão</a>
+    <a href="/patients" class="active">Pacientes</a>
+  </nav>
+</header>
+
+<main>
+  <!-- lista de pacientes -->
+  <section class="card">
+    <h3 class="card-title">Selecione um paciente (<span id="count">0</span>)</h3>
+    <div class="controls">
+      <input type="search" id="search" placeholder="Buscar por nome ou ID…" />
+    </div>
+    <div class="controls">
+      <span class="filter-chip active" data-filter="all">Todos</span>
+      <span class="filter-chip" data-filter="critico">Críticos</span>
+      <span class="filter-chip" data-filter="estavel">Estáveis</span>
+    </div>
+    <div id="plist" class="plist"><div class="result-empty">Carregando coorte…</div></div>
+  </section>
+
+  <!-- resultado da análise -->
+  <section class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 class="card-title" style="margin:0;">Análise multimodal</h3>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <label class="toggle"><input type="checkbox" id="use-video" /> Usar vídeo real (mais lento)</label>
+        <button id="analyze-btn" class="btn btn-accent" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Analisar paciente
+        </button>
+      </div>
+    </div>
+    <div id="result">
+      <div class="result-empty">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2 2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM7 7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v0M7 7v10"/></svg>
+        <div>Selecione um paciente à esquerda e clique em<br/><strong>Analisar paciente</strong>.<br/>O sistema busca automaticamente os dados vinculados ao ID.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $=(s)=>document.querySelector(s), $$=(s)=>Array.from(document.querySelectorAll(s));
+const SEVLABEL={critical:'crítico',high:'elevado',medium:'moderado',low:'baixo',info:'info'};
+const SEVCOLOR={critical:'#dc2626',high:'#ea580c',medium:'#ca8a04',low:'#0891b2',info:'#64748b'};
+const MODLABEL={vitals:'Sinais vitais',prescription:'Prescrições',audio:'Áudio/consulta',video:'Vídeo/postura',movement:'Movimentação'};
+let patients=[], selected=null, filter='all';
+
+function sevFromScore(s){return s>=.85?'critical':s>=.6?'high':s>=.35?'medium':s>=.15?'low':'info';}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function loadPatients(){
+  try{
+    const r=await fetch('/api/patients'); const d=await r.json();
+    if(!d.available){$('#plist').innerHTML='<div class="result-empty">Coorte não encontrada.<br/>Rode <code>python scripts/generate_patient_cohort.py</code></div>';return;}
+    patients=d.patients; renderList();
+  }catch(e){$('#plist').innerHTML='<div class="result-empty">Erro ao carregar: '+e.message+'</div>';}
+}
+
+function renderList(){
+  const q=($('#search').value||'').toLowerCase();
+  const rows=patients.filter(p=>(filter==='all'||p.scenario===filter)&&(p.name.toLowerCase().includes(q)||p.id.toLowerCase().includes(q)));
+  $('#count').textContent=rows.length;
+  const list=$('#plist'); list.innerHTML='';
+  if(!rows.length){list.innerHTML='<div class="result-empty">Nenhum paciente.</div>';return;}
+  rows.forEach(p=>{
+    const crit=p.scenario==='critico';
+    const el=document.createElement('div');
+    el.className='prow '+(crit?'crit':'stab')+(selected===p.id?' selected':'');
+    el.innerHTML=`
+      <div class="pavatar">${p.id.slice(-2)}</div>
+      <div>
+        <div class="pname">${esc(p.name)}</div>
+        <div class="pmeta"><span class="pid">${p.id}</span> · ${esc(p.bed)} · ${p.age}a</div>
+        <div class="pmeta">${esc(p.chief_complaint)}</div>
+      </div>
+      <span class="badge ${crit?'crit':'stab'}">${crit?'crítico':'estável'}</span>`;
+    el.onclick=()=>{selected=p.id;renderList();$('#analyze-btn').disabled=false;};
+    list.appendChild(el);
+  });
+}
+
+async function analyze(){
+  if(!selected)return;
+  const btn=$('#analyze-btn'), orig=btn.innerHTML; btn.disabled=true;
+  btn.innerHTML='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> Analisando…';
+  try{
+    const r=await fetch(`/api/patients/${selected}/analyze`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({use_real_video:$('#use-video').checked})});
+    const raw=await r.text();
+    if(!r.ok){let d;try{d=JSON.parse(raw).detail;}catch{}throw new Error(typeof d==='string'?d:('HTTP '+r.status));}
+    renderResult(JSON.parse(raw));
+  }catch(e){$('#result').innerHTML='<div class="result-empty">Falha: '+esc(e.message)+'</div>';}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
+}
+
+function renderResult(rep){
+  const p=rep.patient||{}; const score=rep.risk_score||0; const sev=rep.alert?rep.alert.severity:sevFromScore(score);
+  const mods=Object.entries(rep.modalities||{}).sort((a,b)=>b[1].risk_score-a[1].risk_score);
+  const modsHtml=mods.map(([m,d])=>{const s=sevFromScore(d.risk_score);return `<div class="modrow"><div>${MODLABEL[m]||m} <span style="color:var(--text-3);font-size:11.5px;">· ${d.findings.length}</span></div><div style="display:flex;align-items:center;gap:10px;"><div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.risk_score*100)}%;background:${SEVCOLOR[s]};"></div></div><b style="font-variant-numeric:tabular-nums;min-width:32px;text-align:right;font-size:12.5px;">${d.risk_score.toFixed(2)}</b></div></div>`;}).join('');
+
+  const findings=[];Object.entries(rep.modalities||{}).forEach(([m,d])=>d.findings.forEach(f=>findings.push({...f,_m:m})));
+  const order=['critical','high','medium','low','info'];
+  findings.sort((a,b)=>order.indexOf(a.severity)-order.indexOf(b.severity)||b.score-a.score);
+  const fHtml=findings.slice(0,10).map(f=>`<div class="finding sev-${f.severity}"><div class="fbar"></div><div><div>${esc(f.description)}</div><div style="margin-top:4px;display:flex;gap:6px;"><span class="sev-badge sev-${f.severity}">${SEVLABEL[f.severity]||f.severity}</span><span class="chip">${MODLABEL[f._m]||f._m}</span></div></div><span class="chip">${f.score.toFixed(2)}</span></div>`).join('')||'<div style="text-align:center;color:var(--text-3);padding:14px;font-size:12.5px;">Nenhum achado — dentro do esperado.</div>';
+
+  // transcrição do áudio (vem em modalities.audio.metadata? não — usamos summary). Buscar transcript:
+  const audio=rep.modalities?rep.modalities.audio:null;
+  const transcript=audio&&audio.metadata?audio.metadata.transcript:null;
+
+  const alertBlock=rep.alert?`<div class="rsec"><h4>Alerta clínico</h4><div style="font-weight:600;font-size:14px;">${esc(rep.alert.title)}</div><div style="margin-top:6px;color:var(--text-2);font-size:12.5px;">${esc(rep.alert.message)}</div>${(rep.alert.hypotheses&&rep.alert.hypotheses.length)?`<div class="hyp"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);">Hipóteses · apoio à decisão</div><ul>${rep.alert.hypotheses.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><div style="margin-top:6px;font-size:10.5px;color:var(--text-3);font-style:italic;">Não substituem avaliação médica.</div></div>`:''}</div>`:`<div class="rsec" style="background:var(--panel-2);"><div style="font-size:13px;color:var(--text-2);">Sem alerta — paciente dentro dos padrões esperados.</div></div>`;
+
+  $('#result').innerHTML=`
+    <div class="score-hero sev-${sev}">
+      <div class="score-value">${score.toFixed(2)}</div>
+      <div class="score-label">Score de risco multimodal</div>
+      <div><span class="sev-badge sev-${sev}">${SEVLABEL[sev]||sev}</span></div>
+    </div>
+    <div class="rsec"><h4>Paciente</h4><dl class="kv">
+      <dt>Nome</dt><dd>${esc(p.name||'')}</dd>
+      <dt>ID</dt><dd>${esc(rep.patient_id)}</dd>
+      <dt>Leito</dt><dd>${esc(p.bed||'—')}</dd>
+      <dt>Queixa</dt><dd>${esc(p.chief_complaint||'—')}</dd>
+      <dt>Vídeo</dt><dd>${rep.used_real_video?'arquivo real processado':'pose pré-computada'}</dd>
+    </dl></div>
+    ${alertBlock}
+    <div class="rsec"><h4>Contribuição por modalidade</h4>${modsHtml||'<div style="color:var(--text-3);font-size:12.5px;">Nenhuma modalidade ativa.</div>'}</div>
+    ${transcript?`<div class="rsec"><h4>Transcrição da consulta</h4><div class="transcript">${esc(transcript)}</div></div>`:''}
+    <div class="rsec"><h4>Principais achados</h4>${fHtml}</div>`;
+}
+
+$$('.filter-chip').forEach(c=>c.onclick=()=>{$$('.filter-chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');filter=c.dataset.filter;renderList();});
+$('#search').addEventListener('input',renderList);
+$('#analyze-btn').addEventListener('click',analyze);
+loadPatients();
+</script>
+</body>
+</html>
