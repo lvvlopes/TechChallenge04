@@ -128,7 +128,6 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <h3 class="card-title" style="margin:0;">Análise multimodal</h3>
       <div style="display:flex;align-items:center;gap:14px;">
-        <label class="toggle"><input type="checkbox" id="use-video" /> Usar vídeo real (mais lento)</label>
         <button id="analyze-btn" class="btn btn-accent" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Analisar paciente
@@ -149,7 +148,7 @@ const $=(s)=>document.querySelector(s), $$=(s)=>Array.from(document.querySelecto
 const SEVLABEL={critical:'crítico',high:'elevado',medium:'moderado',low:'baixo',info:'info'};
 const SEVCOLOR={critical:'#dc2626',high:'#ea580c',medium:'#ca8a04',low:'#0891b2',info:'#64748b'};
 const MODLABEL={vitals:'Sinais vitais',prescription:'Prescrições',audio:'Áudio/consulta',video:'Vídeo/postura',movement:'Movimentação'};
-let patients=[], selected=null, filter='all';
+let patients=[], selected=null, selectedHasVideo=false, filter='all';
 
 function sevFromScore(s){return s>=.85?'critical':s>=.6?'high':s>=.35?'medium':s>=.15?'low':'info';}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -175,12 +174,12 @@ function renderList(){
     el.innerHTML=`
       <div class="pavatar">${p.id.slice(-2)}</div>
       <div>
-        <div class="pname">${esc(p.name)}</div>
+        <div class="pname">${esc(p.name)} ${p.has_video?'<span title="vídeo real disponível">🎥</span>':''}</div>
         <div class="pmeta"><span class="pid">${p.id}</span> · ${esc(p.bed)} · ${p.age}a</div>
         <div class="pmeta">${esc(p.chief_complaint)}</div>
       </div>
       <span class="badge ${crit?'crit':'stab'}">${crit?'crítico':'estável'}</span>`;
-    el.onclick=()=>{selected=p.id;renderList();$('#analyze-btn').disabled=false;};
+    el.onclick=()=>{selected=p.id;selectedHasVideo=p.has_video;renderList();$('#analyze-btn').disabled=false;};
     list.appendChild(el);
   });
 }
@@ -188,9 +187,10 @@ function renderList(){
 async function analyze(){
   if(!selected)return;
   const btn=$('#analyze-btn'), orig=btn.innerHTML; btn.disabled=true;
-  btn.innerHTML='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> Analisando…';
+  const spin='<svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+  btn.innerHTML=spin+' Analisando…';
   try{
-    const r=await fetch(`/api/patients/${selected}/analyze`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({use_real_video:$('#use-video').checked})});
+    const r=await fetch(`/api/patients/${selected}/analyze`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const raw=await r.text();
     if(!r.ok){let d;try{d=JSON.parse(raw).detail;}catch{}throw new Error(typeof d==='string'?d:('HTTP '+r.status));}
     renderResult(JSON.parse(raw));
@@ -212,6 +212,8 @@ function renderResult(rep){
   const audio=rep.modalities?rep.modalities.audio:null;
   const transcript=audio&&audio.metadata?audio.metadata.transcript:null;
 
+  const videoBlock=rep.has_video_file?`<div class="rsec"><h4>Vídeo do paciente (análise real)</h4><video controls playsinline style="width:100%;border-radius:8px;background:#000;max-height:280px;" src="/api/patients/${encodeURIComponent(rep.patient_id)}/video"></video><div style="margin-top:6px;font-size:11.5px;color:var(--text-3);">Analisado com MediaPipe Pose + YOLOv8.</div></div>`:'';
+
   const alertBlock=rep.alert?`<div class="rsec"><h4>Alerta clínico</h4><div style="font-weight:600;font-size:14px;">${esc(rep.alert.title)}</div><div style="margin-top:6px;color:var(--text-2);font-size:12.5px;">${esc(rep.alert.message)}</div>${(rep.alert.hypotheses&&rep.alert.hypotheses.length)?`<div class="hyp"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);">Hipóteses · apoio à decisão</div><ul>${rep.alert.hypotheses.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><div style="margin-top:6px;font-size:10.5px;color:var(--text-3);font-style:italic;">Não substituem avaliação médica.</div></div>`:''}</div>`:`<div class="rsec" style="background:var(--panel-2);"><div style="font-size:13px;color:var(--text-2);">Sem alerta — paciente dentro dos padrões esperados.</div></div>`;
 
   $('#result').innerHTML=`
@@ -225,8 +227,9 @@ function renderResult(rep){
       <dt>ID</dt><dd>${esc(rep.patient_id)}</dd>
       <dt>Leito</dt><dd>${esc(p.bed||'—')}</dd>
       <dt>Queixa</dt><dd>${esc(p.chief_complaint||'—')}</dd>
-      <dt>Vídeo</dt><dd>${rep.used_real_video?'arquivo real processado':'pose pré-computada'}</dd>
+      <dt>Vídeo</dt><dd>${rep.has_video_file?'arquivo real processado':'pose pré-computada'}</dd>
     </dl></div>
+    ${videoBlock}
     ${alertBlock}
     <div class="rsec"><h4>Contribuição por modalidade</h4>${modsHtml||'<div style="color:var(--text-3);font-size:12.5px;">Nenhuma modalidade ativa.</div>'}</div>
     ${transcript?`<div class="rsec"><h4>Transcrição da consulta</h4><div class="transcript">${esc(transcript)}</div></div>`:''}

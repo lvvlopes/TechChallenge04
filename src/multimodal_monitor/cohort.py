@@ -21,7 +21,7 @@ Layout esperado::
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 import pandas as pd
@@ -44,7 +44,6 @@ class PatientRecord:
     bed: str
     scenario: str  # "estavel" | "critico"
     chief_complaint: str = ""
-    video: str | None = None  # caminho para vídeo real (opcional)
 
     def to_dict(self) -> dict:
         return {
@@ -54,7 +53,6 @@ class PatientRecord:
             "bed": self.bed,
             "scenario": self.scenario,
             "chief_complaint": self.chief_complaint,
-            "has_video": bool(self.video),
         }
 
 
@@ -81,18 +79,31 @@ class PatientCohort:
         if not self.available:
             return []
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
-        return [PatientRecord(**p) for p in data.get("patients", [])]
+        known = {f.name for f in fields(PatientRecord)}
+        return [
+            PatientRecord(**{k: v for k, v in p.items() if k in known})
+            for p in data.get("patients", [])
+        ]
 
     def get(self, patient_id: str) -> PatientRecord | None:
         return next((p for p in self.list_patients() if p.id == patient_id), None)
 
+    def video_file(self, patient_id: str) -> Path | None:
+        """Retorna o caminho do vídeo real do paciente, se existir na pasta.
+
+        Convenção: se houver um arquivo ``video_teste.mp4`` dentro da pasta do
+        paciente, ele é usado para análise de vídeo real (MediaPipe + YOLOv8).
+        """
+        vf = self.root / patient_id / "video_teste.mp4"
+        return vf if vf.exists() else None
+
     # ------------------------------------------------------------------ #
-    def load_input(self, patient_id: str, use_real_video: bool = False) -> MonitoringInput:
+    def load_input(self, patient_id: str) -> MonitoringInput:
         """Monta o :class:`MonitoringInput` de um paciente a partir dos arquivos.
 
-        ``use_real_video``: se True e o paciente tiver um vídeo vinculado,
-        processa o arquivo de vídeo real (MediaPipe + YOLOv8); caso contrário,
-        usa os sinais de pose pré-computados (rápido, offline).
+        Regra do vídeo: se a pasta do paciente contiver ``video_teste.mp4``,
+        esse arquivo é processado como vídeo real (MediaPipe + YOLOv8);
+        caso contrário, usa-se a pose pré-computada (``pose_frames.csv``).
         """
         record = self.get(patient_id)
         if record is None:
@@ -127,31 +138,30 @@ class PatientCohort:
             audio_path = pdir / "consulta.wav"
 
         # --- Vídeo / pose ---
-        video_path: str | Path | None = None
+        # Sempre usa pose pré-computada (em memória, rápido e confiável). Para
+        # pacientes com 'video_teste.mp4', o pose_frames.csv é extraído do vídeo
+        # real por scripts/extract_patient_pose.py — assim os achados vêm do
+        # vídeo de verdade, sem rodar a análise pesada dentro do servidor web.
         pose_frames: list[PoseFrame] | None = None
-        if use_real_video and record.video and Path(record.video).exists():
-            video_path = record.video
-        else:
-            fpath = pdir / "pose_frames.csv"
-            if fpath.exists():
-                fdf = pd.read_csv(fpath)
-                pose_frames = [
-                    PoseFrame(
-                        frame_index=int(row["frame_index"]),
-                        timestamp_s=float(row["timestamp_s"]),
-                        movement_index=float(row["movement_index"]),
-                        trunk_angle=(
-                            None if pd.isna(row.get("trunk_angle")) else float(row["trunk_angle"])
-                        ),
-                    )
-                    for _, row in fdf.iterrows()
-                ]
+        fpath = pdir / "pose_frames.csv"
+        if fpath.exists():
+            fdf = pd.read_csv(fpath)
+            pose_frames = [
+                PoseFrame(
+                    frame_index=int(row["frame_index"]),
+                    timestamp_s=float(row["timestamp_s"]),
+                    movement_index=float(row["movement_index"]),
+                    trunk_angle=(
+                        None if pd.isna(row.get("trunk_angle")) else float(row["trunk_angle"])
+                    ),
+                )
+                for _, row in fdf.iterrows()
+            ]
 
         return MonitoringInput(
             patient_id=patient_id,
             vitals=vitals,
             audio_path=audio_path,
             pose_frames=pose_frames,
-            video_path=video_path,
             prescriptions=prescriptions,
         )

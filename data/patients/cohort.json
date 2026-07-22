@@ -8,8 +8,7 @@
       "age": 40,
       "bed": "UTI · Leito 01",
       "scenario": "critico",
-      "chief_complaint": "Dispneia e dor torácica",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Dispneia e dor torácica"
     },
     {
       "id": "PAC-002",
@@ -17,8 +16,7 @@
       "age": 47,
       "bed": "Enfermaria · Leito 02",
       "scenario": "estavel",
-      "chief_complaint": "Reavaliação de rotina",
-      "video": null
+      "chief_complaint": "Reavaliação de rotina"
     },
     {
       "id": "PAC-003",
@@ -26,8 +24,7 @@
       "age": 54,
       "bed": "Semi-intensiva · Leito 03",
       "scenario": "critico",
-      "chief_complaint": "Taquicardia e fadiga intensa",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Taquicardia e fadiga intensa"
     },
     {
       "id": "PAC-004",
@@ -35,8 +32,7 @@
       "age": 61,
       "bed": "Pós-operatório · Leito 04",
       "scenario": "estavel",
-      "chief_complaint": "Fisioterapia em andamento",
-      "video": null
+      "chief_complaint": "Fisioterapia em andamento"
     },
     {
       "id": "PAC-005",
@@ -44,8 +40,7 @@
       "age": 68,
       "bed": "UTI · Leito 05",
       "scenario": "critico",
-      "chief_complaint": "Dispneia e dor torácica",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Dispneia e dor torácica"
     },
     {
       "id": "PAC-006",
@@ -53,8 +48,7 @@
       "age": 75,
       "bed": "Enfermaria · Leito 06",
       "scenario": "estavel",
-      "chief_complaint": "Reavaliação de rotina",
-      "video": null
+      "chief_complaint": "Reavaliação de rotina"
     },
     {
       "id": "PAC-007",
@@ -62,8 +56,7 @@
       "age": 82,
       "bed": "Semi-intensiva · Leito 07",
       "scenario": "critico",
-      "chief_complaint": "Taquicardia e fadiga intensa",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Taquicardia e fadiga intensa"
     },
     {
       "id": "PAC-008",
@@ -71,8 +64,7 @@
       "age": 44,
       "bed": "Pós-operatório · Leito 08",
       "scenario": "estavel",
-      "chief_complaint": "Fisioterapia em andamento",
-      "video": null
+      "chief_complaint": "Fisioterapia em andamento"
     },
     {
       "id": "PAC-009",
@@ -80,8 +72,7 @@
       "age": 51,
       "bed": "UTI · Leito 09",
       "scenario": "critico",
-      "chief_complaint": "Dispneia e dor torácica",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Dispneia e dor torácica"
     },
     {
       "id": "PAC-010",
@@ -89,8 +80,7 @@
       "age": 58,
       "bed": "Enfermaria · Leito 10",
       "scenario": "estavel",
-      "chief_complaint": "Reavaliação de rotina",
-      "video": null
+      "chief_complaint": "Reavaliação de rotina"
     },
     {
       "id": "PAC-011",
@@ -98,8 +88,7 @@
       "age": 65,
       "bed": "Semi-intensiva · Leito 11",
       "scenario": "critico",
-      "chief_complaint": "Taquicardia e fadiga intensa",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Taquicardia e fadiga intensa"
     },
     {
       "id": "PAC-012",
@@ -107,8 +96,7 @@
       "age": 72,
       "bed": "Pós-operatório · Leito 12",
       "scenario": "estavel",
-      "chief_complaint": "Fisioterapia em andamento",
-      "video": null
+      "chief_complaint": "Fisioterapia em andamento"
     },
     {
       "id": "PAC-013",
@@ -116,8 +104,7 @@
       "age": 79,
       "bed": "UTI · Leito 01",
       "scenario": "critico",
-      "chief_complaint": "Dispneia e dor torácica",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Dispneia e dor torácica"
     },
     {
       "id": "PAC-014",
@@ -125,8 +112,7 @@
       "age": 41,
       "bed": "Enfermaria · Leito 02",
       "scenario": "estavel",
-      "chief_complaint": "Reavaliação de rotina",
-      "video": null
+      "chief_complaint": "Reavaliação de rotina"
     },
     {
       "id": "PAC-015",
@@ -134,8 +120,7 @@
       "age": 48,
       "bed": "Semi-intensiva · Leito 03",
       "scenario": "critico",
-      "chief_complaint": "Taquicardia e fadiga intensa",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Taquicardia e fadiga intensa"
     },
     {
       "id": "PAC-016",
@@ -143,8 +128,7 @@
       "age": 55,
       "bed": "Pós-operatório · Leito 04",
       "scenario": "estavel",
-      "chief_complaint": "Fisioterapia em andamento",
-      "video": null
+      "chief_complaint": "Fisioterapia em andamento"
     },
     {
       "id": "PAC-017",
@@ -152,8 +136,7 @@
       "age": 62,
       "bed": "UTI · Leito 05",
       "scenario": "critico",
-      "chief_complaint": "Dispneia e dor torácica",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Dispneia e dor torácica"
     },
     {
       "id": "PAC-018",
@@ -161,8 +144,7 @@
       "age": 69,
       "bed": "Enfermaria · Leito 06",
       "scenario": "estavel",
-      "chief_complaint": "Reavaliação de rotina",
-      "video": null
+      "chief_complaint": "Reavaliação de rotina"
     },
     {
       "id": "PAC-019",
@@ -170,8 +152,7 @@
       "age": 76,
       "bed": "Semi-intensiva · Leito 07",
       "scenario": "critico",
-      "chief_complaint": "Taquicardia e fadiga intensa",
-      "video": "data/samples/video_teste.mp4"
+      "chief_complaint": "Taquicardia e fadiga intensa"
     },
     {
       "id": "PAC-020",
@@ -179,8 +160,7 @@
       "age": 83,
       "bed": "Pós-operatório · Leito 08",
       "scenario": "estavel",
-      "chief_complaint": "Fisioterapia em andamento",
-      "video": null
+      "chief_complaint": "Fisioterapia em andamento"
     }
   ]
 }

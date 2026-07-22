@@ -47,6 +47,11 @@ htmlcov/
 *.mp3
 !data/samples/**/*.wav
 !data/samples/video_teste.mp4
+# áudios da coorte: gerados por SAPI (Windows-only) via TTS — versionados
+# para que graders em qualquer SO tenham o dataset completo e reprodutível.
+!data/patients/**/*.wav
+# vídeo por paciente NÃO é versionado (20 MB/arquivo, opt-in):
+# copie data/samples/video_teste.mp4 para a pasta do paciente para ativar.
 
 # Generated artifacts / outputs
 outputs/

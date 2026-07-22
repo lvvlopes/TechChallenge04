@@ -30,7 +30,6 @@ from multimodal_monitor.synthetic import (  # noqa: E402
 )
 
 OUT = Path("data/patients")
-REAL_VIDEO = "data/samples/video_teste.mp4"
 
 # Nomes fictícios para a coorte (dados 100% sintéticos, não são pessoas reais).
 NAMES = [
@@ -93,6 +92,9 @@ def build_patient(index: int, seed_base: int) -> dict:
     (pdir / "consulta.txt").write_text(transcript, encoding="utf-8")
 
     # --- Metadados do manifesto ---
+    # Vídeo real: por padrão a coorte usa apenas a pose pré-computada (rápido).
+    # Para habilitar a análise de vídeo real de um paciente, basta copiar um
+    # arquivo 'video_teste.mp4' para dentro da pasta dele — o loader detecta.
     complaint_pool = COMPLAINTS[scenario]
     return {
         "id": pid,
@@ -101,9 +103,6 @@ def build_patient(index: int, seed_base: int) -> dict:
         "bed": f"{SECTORS[index % len(SECTORS)]} · Leito {index % 12 + 1:02d}",
         "scenario": scenario,
         "chief_complaint": complaint_pool[index % len(complaint_pool)],
-        # vídeo real vinculado aos críticos (o vídeo de teste exibe postura
-        # horizontal = compatível com queda); estáveis usam apenas a pose.
-        "video": REAL_VIDEO if critical else None,
     }
 
 

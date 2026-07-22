@@ -507,44 +507,44 @@ def list_patients() -> dict:
     cohort = _get_cohort()
     if not cohort.available:
         return {"available": False, "patients": []}
-    return {
-        "available": True,
-        "patients": [p.to_dict() for p in cohort.list_patients()],
-    }
-
-
-class PatientAnalyzeRequest(BaseModel):
-    """Parâmetros da análise de um paciente da coorte."""
-
-    use_real_video: bool = Field(
-        default=False,
-        description=(
-            "Se True e o paciente tiver vídeo vinculado, processa o arquivo de "
-            "vídeo real (MediaPipe + YOLOv8); caso contrário usa a pose "
-            "pré-computada (mais rápido)."
-        ),
-    )
+    patients = []
+    for p in cohort.list_patients():
+        d = p.to_dict()
+        d["has_video"] = cohort.video_file(p.id) is not None
+        patients.append(d)
+    return {"available": True, "patients": patients}
 
 
 @app.post("/api/patients/{patient_id}/analyze")
-def analyze_patient(patient_id: str, req: PatientAnalyzeRequest | None = None) -> dict:
+def analyze_patient(patient_id: str) -> dict:
     """Carrega automaticamente os dados vinculados ao paciente e os analisa.
 
     "Amarração": a partir do ``patient_id``, o sistema busca na coorte os
-    sinais vitais, prescrições, transcrição de consulta e sinais de vídeo/pose
-    já persistidos e executa o pipeline multimodal completo.
+    sinais vitais, prescrições, áudio (consulta.wav) e vídeo/pose já
+    persistidos e executa o pipeline multimodal completo. Se houver um
+    ``video_teste.mp4`` na pasta do paciente, o vídeo real é analisado.
     """
     cohort = _get_cohort()
     record = cohort.get(patient_id)
     if record is None:
         raise HTTPException(404, f"Paciente não encontrado na coorte: {patient_id}")
 
-    use_real_video = bool(req and req.use_real_video)
-    data = cohort.load_input(patient_id, use_real_video=use_real_video)
+    has_video = cohort.video_file(patient_id) is not None
+    data = cohort.load_input(patient_id)
 
     monitor = _get_monitor()
     report = monitor.run(data)
     payload = report.as_dict()
     payload["patient"] = record.to_dict()
-    payload["used_real_video"] = use_real_video
+    payload["has_video_file"] = has_video
     return payload
+
+
+@app.get("/api/patients/{patient_id}/video", include_in_schema=False)
+def patient_video(patient_id: str) -> FileResponse:
+    """Serve o arquivo de vídeo real de um paciente (para exibição na tela)."""
+    cohort = _get_cohort()
+    vf = cohort.video_file(patient_id)
+    if vf is None:
+        raise HTTPException(404, f"Paciente sem vídeo: {patient_id}")
+    return FileResponse(vf, media_type="video/mp4")

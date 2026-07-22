@@ -126,7 +126,9 @@ class PatientMonitor:
         # desconhecidos, MediaPipe pode explodir em quadros corrompidos, etc.)
         if data.video_path:
             try:
-                results.append(self.video_pipeline.process(data.video_path))
+                # análise pesada isolada em subprocesso (evita colisões de
+                # protobuf/torch/mediapipe dentro do servidor web)
+                results.append(self.video_pipeline.process_isolated(data.video_path))
             except Exception as exc:
                 logger.warning(
                     "Análise de vídeo falhou (%s: %s); prosseguindo sem essa modalidade.",

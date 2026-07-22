@@ -54,6 +54,47 @@ class VideoAnalysisPipeline:
         """Modo offline: processa sinais de pose pré-computados."""
         return self._build_result(frames, source="precomputed_pose")
 
+    def process_isolated(self, video_path: str | Path, timeout: float = 600.0) -> ModalityResult:
+        """Processa o vídeo num subprocesso isolado e devolve o resultado.
+
+        Roda a análise pesada (MediaPipe + YOLOv8) num processo Python limpo,
+        evitando colisões de import (protobuf/torch) quando executado dentro do
+        servidor web. Levanta :class:`RuntimeError` se o subprocesso falhar.
+        """
+        import json
+        import os
+        import subprocess
+        import sys
+
+        from ._runner import RESULT_MARKER
+
+        # Força a implementação pure-python do protobuf: a implementação C++
+        # (upb, padrão no protobuf 4.x) é incompatível com o código gerado do
+        # MediaPipe neste ambiente (MessageFactory.GetPrototype / Extensions).
+        env = {
+            **os.environ,
+            "PYTHONIOENCODING": "utf-8",
+            "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": "python",
+        }
+        proc = subprocess.run(
+            [sys.executable, "-m", "multimodal_monitor.video_analysis._runner", str(video_path)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+            env=env,
+        )
+        for line in proc.stdout.splitlines():
+            if line.startswith(RESULT_MARKER):
+                payload = json.loads(line[len(RESULT_MARKER) :])
+                if "error" in payload:
+                    raise RuntimeError(f"runner de vídeo: {payload['error']}")
+                return ModalityResult(**payload)
+        raise RuntimeError(
+            f"subprocesso de vídeo não retornou resultado (rc={proc.returncode}): "
+            f"{proc.stderr[-400:]}"
+        )
+
     # ------------------------------------------------------------------ #
     def _build_result(
         self, frames: list[PoseFrame], source: str, extra: dict | None = None
