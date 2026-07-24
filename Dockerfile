@@ -27,9 +27,10 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 
-# Coorte sintética (20 pacientes) lida por cohort.py em runtime — CSVs, .txt e
-# .wav pequenos (~500 KB cada). Necessária para a página /patients funcionar.
-COPY data/patients ./data/patients
+# Coorte sintética (20 pacientes) lida por cohort.py em runtime: um único
+# JSON (~680 KB) + os áudios .wav. Necessária para a página /patients.
+COPY data/patients.json ./data/patients.json
+COPY data/patients_media ./data/patients_media
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir ".[audio]" \

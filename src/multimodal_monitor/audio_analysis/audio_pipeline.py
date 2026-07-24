@@ -7,7 +7,7 @@ from pathlib import Path
 from ..config import Settings, get_settings
 from ..logging_config import get_logger
 from ..schemas import Finding, Modality, ModalityResult, Severity
-from .speech_to_text import SpeechToText
+from .speech_to_text import SpeechToText, TranscriptionResult
 from .text_analytics import TextAnalytics
 
 logger = get_logger(__name__)
@@ -21,9 +21,31 @@ class AudioAnalysisPipeline:
         self.stt = SpeechToText(self.settings)
         self.text_analytics = TextAnalytics(self.settings)
 
-    def process(self, audio_path: str | Path) -> ModalityResult:
-        audio_path = Path(audio_path)
-        transcription = self.stt.transcribe(audio_path)
+    def process(
+        self,
+        audio_path: str | Path | None = None,
+        fallback_transcript: str | None = None,
+    ) -> ModalityResult:
+        """Processa o áudio de uma consulta.
+
+        ``fallback_transcript`` é usado quando não há arquivo de áudio ou
+        quando a transcrição não produz texto (ex.: sem credenciais Azure),
+        permitindo que a fonte do texto seja o próprio dataset.
+        """
+        if audio_path is not None:
+            transcription = self.stt.transcribe(Path(audio_path))
+        else:
+            transcription = TranscriptionResult(
+                text="", locale=self.settings.default_locale, source="none"
+            )
+
+        if not transcription.text.strip() and fallback_transcript:
+            transcription = TranscriptionResult(
+                text=fallback_transcript,
+                locale=transcription.locale,
+                source="dataset",
+            )
+
         insights = self.text_analytics.analyze(transcription.text)
 
         findings: list[Finding] = []

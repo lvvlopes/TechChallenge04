@@ -199,7 +199,7 @@ pytest -q
 3. **Coorte gerada** — `python scripts/generate_patient_cohort.py`, áudios com
    `powershell -File scripts/generate_patient_audio.ps1`, e o vídeo do PAC-001:
    ```bash
-   cp data/samples/video_teste.mp4 data/patients/PAC-001/
+   cp data/samples/video_teste.mp4 data/patients_media/PAC-001.mp4
    python scripts/extract_patient_pose.py
    ```
 4. **Vídeo de teste** em `data/samples/video_teste.mp4`.

@@ -38,6 +38,10 @@ class MonitoringInput:
     pose_frames: list[PoseFrame] | None = None
     video_path: str | Path | None = None
     prescriptions: list[PrescriptionEvent] = field(default_factory=list)
+    # Transcrição de referência: usada quando a transcrição do áudio não
+    # produz texto (ex.: sem credenciais Azure). Permite que a coorte guarde
+    # o texto no próprio dataset, sem arquivos .txt avulsos.
+    transcript: str | None = None
 
 
 @dataclass
@@ -111,9 +115,13 @@ class PatientMonitor:
             )
 
         # RF02 — áudio (protegido contra qualquer falha de decodificação/SDK)
-        if data.audio_path:
+        if data.audio_path or data.transcript:
             try:
-                results.append(self.audio_pipeline.process(data.audio_path))
+                results.append(
+                    self.audio_pipeline.process(
+                        data.audio_path, fallback_transcript=data.transcript
+                    )
+                )
             except Exception as exc:
                 logger.warning(
                     "Análise de áudio falhou (%s: %s); prosseguindo sem essa modalidade.",

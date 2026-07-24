@@ -6,37 +6,40 @@ Esta pasta armazena datasets locais usados pelo pipeline.
 
 ```
 data/
-├── samples/     # dados sintéticos de um paciente (gerados por script)
-├── patients/    # coorte de 20 pacientes com cenários estável/crítico
-├── raw/         # dados brutos externos  — NÃO versionar (no .gitignore)
-└── private/     # dados sensíveis/pacientes — NUNCA versionar (no .gitignore)
+├── samples/          # dados sintéticos de um paciente (gerados por script)
+├── patients.json     # coorte de 20 pacientes em UM arquivo (metadados + séries)
+├── patients_media/   # binários da coorte: <ID>.wav (áudio) e <ID>.mp4 (vídeo)
+├── raw/              # dados brutos externos  — NÃO versionar (no .gitignore)
+└── private/          # dados sensíveis/pacientes — NUNCA versionar (no .gitignore)
 ```
 
-## Coorte de pacientes (`data/patients/`)
+## Coorte de pacientes (`data/patients.json`)
 
-Uma coorte sintética de 20 pacientes, cada um com dados coerentes com seu
-cenário (estável ou crítico), "amarrados" ao ID do paciente para análise
-automática pela tela `/patients` (ou pela API `POST /api/patients/{id}/analyze`).
+Uma coorte sintética de 20 pacientes num **único arquivo JSON**, cada um com
+dados coerentes com seu cenário (estável/crítico), "amarrados" ao ID para
+análise automática pela tela `/patients` (ou `POST /api/patients/{id}/analyze`).
 
 ```bash
 python scripts/generate_patient_cohort.py          # gera os 20 pacientes
 python scripts/generate_patient_cohort.py --n 30   # opcional: outra quantidade
 ```
 
-Estrutura por paciente (`data/patients/PAC-XXX/`):
+Cada paciente no JSON contém: metadados (nome, leito, idade, cenário, queixa),
+**sinais vitais** e **sinais de pose** em formato colunar, **prescrições** e a
+**transcrição** da consulta (fonte do texto quando não há Azure).
 
-| Arquivo             | Conteúdo                                              |
-| ------------------- | ----------------------------------------------------- |
-| `vitals.csv`        | Série temporal de sinais vitais (coerente c/ cenário) |
-| `prescriptions.csv` | Evolução de prescrições                               |
-| `pose_frames.csv`   | Sinais de pose de vídeo (movimento + tronco)          |
-| `consulta.txt`      | Transcrição da consulta (fonte do STT em modo mock)   |
+Os binários não cabem em JSON e ficam numa pasta plana `data/patients_media/`:
 
-O manifesto `data/patients/cohort.json` lista os pacientes com metadados
-(nome, leito, idade, cenário, queixa). Pacientes **críticos** têm o vídeo real
-`data/samples/video_teste.mp4` vinculado — a opção "usar vídeo real" na tela
-processa esse arquivo com MediaPipe + YOLOv8; caso contrário usa a pose
-pré-computada (mais rápido).
+| Arquivo                | Conteúdo                                            |
+| ---------------------- | --------------------------------------------------- |
+| `<ID>.wav`             | Áudio da consulta (TTS pt-BR, WAV 16 kHz mono)      |
+| `<ID>.mp4` *(opcional)*| Vídeo real do paciente                              |
+
+**Vídeo real:** copie um `.mp4` para `data/patients_media/<ID>.mp4` e rode
+`python scripts/extract_patient_pose.py` — a pose é extraída do vídeo real e
+gravada no `patients.json`; a tela `/patients` passa a exibir o player desse
+vídeo. Os `.mp4` **não são versionados** (arquivos grandes, opt-in); os `.wav`
+são versionados (gerados por SAPI, Windows-only).
 
 ## Gerando os dados de exemplo
 

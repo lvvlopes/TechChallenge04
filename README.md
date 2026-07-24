@@ -128,10 +128,10 @@ uvicorn multimodal_monitor.api.main:app --reload --app-dir src
 ### 6. (Opcional) Gerar a coorte e as mídias
 
 ```bash
-python scripts/generate_patient_cohort.py            # 20 pacientes em data/patients/
+python scripts/generate_patient_cohort.py            # 20 pacientes em data/patients.json
 powershell -File scripts/generate_patient_audio.ps1  # áudio TTS pt-BR por paciente (Windows)
-# vídeo real de um paciente: copie o mp4 para a pasta e extraia a pose
-cp data/samples/video_teste.mp4 data/patients/PAC-001/
+# vídeo real de um paciente: copie o mp4 para a mídia e extraia a pose
+cp data/samples/video_teste.mp4 data/patients_media/PAC-001.mp4
 python scripts/extract_patient_pose.py
 ```
 
@@ -175,7 +175,8 @@ tests/                    # pytest (41 casos)
 docs/                     # relatório técnico, mapa de implementação, checklist, roteiro, deploy
 data/
 ├── samples/              # dados sintéticos de 1 paciente (versionados)
-└── patients/             # coorte de 20 pacientes (vitais, áudio, pose, prescrições)
+├── patients.json         # coorte de 20 pacientes em um único arquivo
+└── patients_media/       # binários da coorte: <ID>.wav (áudio) · <ID>.mp4 (vídeo)
 Dockerfile                # imagem para Azure Container Apps
 ```
 
@@ -186,7 +187,7 @@ pytest                                        # testes (41 casos)
 ruff check .                                  # lint
 mypy src                                      # checagem de tipos
 python scripts/generate_synthetic_data.py     # (re)gera data/samples/
-python scripts/generate_patient_cohort.py     # (re)gera data/patients/
+python scripts/generate_patient_cohort.py     # (re)gera data/patients.json
 ```
 
 ## 🧠 Como as anomalias são detectadas (RF03)
@@ -218,7 +219,7 @@ resultado para severidade e alerta (limiar `0.35`).
 
 - Credenciais Azure vivem apenas no `.env` (no `.gitignore`), **nunca** no código.
 - Pastas `data/raw/` e `data/private/` são ignoradas — **não versione dados
-  reais de pacientes**. A coorte em `data/patients/` é **100% sintética**.
+  reais de pacientes**. A coorte em `data/patients.json` é **100% sintética**.
 - Vídeos (`*.mp4`) não são versionados por padrão; a coorte usa pose
   pré-extraída e cada paciente pode receber um `video_teste.mp4` local.
 

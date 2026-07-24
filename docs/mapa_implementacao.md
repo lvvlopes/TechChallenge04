@@ -159,7 +159,7 @@ python -c "from multimodal_monitor.audio_analysis import TextAnalytics; print(Te
 
 | Onde | Detalhe |
 |---|---|
-| [`cohort.py`](../src/multimodal_monitor/cohort.py) | `PatientCohort` — lê o manifesto `data/patients/cohort.json` e monta o `MonitoringInput` de um paciente a partir dos arquivos "amarrados" ao ID (vitais, prescrições, áudio, pose). |
+| [`cohort.py`](../src/multimodal_monitor/cohort.py) | `PatientCohort` — lê o arquivo único `data/patients.json` e monta o `MonitoringInput` de um paciente com os dados "amarrados" ao ID (vitais, prescrições, áudio, pose, transcrição); binários em `data/patients_media/`. |
 | [`scripts/generate_patient_cohort.py`](../scripts/generate_patient_cohort.py) | Gera 20 pacientes (10 críticos, 10 estáveis) reprodutíveis. |
 | [`scripts/generate_patient_audio.ps1`](../scripts/generate_patient_audio.ps1) | Gera o `consulta.wav` real de cada paciente (voz SAPI pt-BR + WAV 16 kHz mono). |
 | [`scripts/extract_patient_pose.py`](../scripts/extract_patient_pose.py) | Extrai a pose real de `video_teste.mp4` (quando presente na pasta) para `pose_frames.csv`. |

@@ -173,7 +173,8 @@ visual.
 
 ### 5.1 Coorte de pacientes e "amarração" por ID
 
-Uma coorte de 20 pacientes sintéticos é persistida em `data/patients/`, cada um
+Uma coorte de 20 pacientes sintéticos é persistida em `data/patients.json`
+(binários em `data/patients_media/`), cada um
 com dados coerentes com seu cenário (estável/crítico) e "amarrados" ao ID:
 sinais vitais, prescrições, **áudio real** (sintetizado por TTS em pt-BR e
 gravado em WAV 16 kHz mono, transcrito pelo Azure Speech quando ativo) e sinais

@@ -1,8 +1,10 @@
 # =====================================================================
-# Gera o áudio (.wav) de cada paciente da coorte a partir da sua
-# transcrição (consulta.txt), usando a voz SAPI pt-BR do Windows e
+# Gera o áudio (.wav) de cada paciente da coorte a partir da transcrição
+# gravada em data/patients.json, usando a voz SAPI pt-BR do Windows e
 # normalizando para WAV PCM 16 kHz mono — o formato nativo do Azure
 # Speech to Text.
+#
+# Saída: data/patients_media/<ID>.wav
 #
 # Uso:  powershell -ExecutionPolicy Bypass -File scripts\generate_patient_audio.ps1
 #
@@ -10,38 +12,40 @@
 # =====================================================================
 
 # Continue: o ffmpeg escreve no stderr normalmente; sob "Stop" o PowerShell
-# trataria isso como erro fatal. Verificamos $LASTEXITCODE manualmente.
+# trataria isso como erro fatal. Verificamos a saída manualmente.
 $ErrorActionPreference = "Continue"
 Add-Type -AssemblyName System.Speech
 
-$root = Join-Path (Split-Path $PSScriptRoot -Parent) "data\patients"
-if (-not (Test-Path $root)) {
-    Write-Error "Coorte não encontrada em $root. Rode antes: python scripts\generate_patient_cohort.py"
+$root      = Split-Path $PSScriptRoot -Parent
+$cohortFile = Join-Path $root "data\patients.json"
+$mediaDir   = Join-Path $root "data\patients_media"
+
+if (-not (Test-Path $cohortFile)) {
+    Write-Error "Coorte não encontrada em $cohortFile. Rode antes: python scripts\generate_patient_cohort.py"
     exit 1
 }
+if (-not (Test-Path $mediaDir)) { New-Item -ItemType Directory -Path $mediaDir | Out-Null }
 
 $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
 if (-not $ffmpeg) { Write-Error "ffmpeg não encontrado no PATH."; exit 1 }
 
+$cohort = Get-Content $cohortFile -Raw -Encoding UTF8 | ConvertFrom-Json
+
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-# seleciona uma voz pt-BR se existir
 $ptVoice = $synth.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture -like "pt*" } | Select-Object -First 1
 if ($ptVoice) { $synth.SelectVoice($ptVoice.VoiceInfo.Name); Write-Output ("Voz: " + $ptVoice.VoiceInfo.Name) }
 else { Write-Output "Aviso: nenhuma voz pt-BR encontrada; usando a voz padrão." }
 $synth.Rate = -1  # levemente mais devagar → melhor reconhecimento
 
-$patients = Get-ChildItem $root -Directory | Where-Object { $_.Name -like "PAC-*" }
 $count = 0
-foreach ($p in $patients) {
-    $txt = Join-Path $p.FullName "consulta.txt"
-    if (-not (Test-Path $txt)) { continue }
-    $text = Get-Content $txt -Raw -Encoding UTF8
-    $rawWav = Join-Path $env:TEMP ($p.Name + "_raw.wav")
-    $outWav = Join-Path $p.FullName "consulta.wav"
+foreach ($p in $cohort.patients) {
+    if (-not $p.transcript) { continue }
+    $rawWav = Join-Path $env:TEMP ($p.id + "_raw.wav")
+    $outWav = Join-Path $mediaDir ($p.id + ".wav")
 
     # 1) SAPI sintetiza para um WAV temporário
     $synth.SetOutputToWaveFile($rawWav)
-    $synth.Speak($text)
+    $synth.Speak($p.transcript)
     $synth.SetOutputToNull()
 
     # 2) ffmpeg normaliza para PCM 16 kHz mono (formato do Azure Speech)
@@ -51,10 +55,10 @@ foreach ($p in $patients) {
 
     if (Test-Path $outWav) {
         $count++
-        Write-Output ("  " + $p.Name + " -> consulta.wav")
+        Write-Output ("  " + $p.id + " -> " + $p.id + ".wav")
     } else {
-        Write-Output ("  " + $p.Name + " -> FALHOU")
+        Write-Output ("  " + $p.id + " -> FALHOU")
     }
 }
 $synth.Dispose()
-Write-Output ("Concluído: " + $count + " áudios gerados em " + $root)
+Write-Output ("Concluído: " + $count + " áudios gerados em " + $mediaDir)

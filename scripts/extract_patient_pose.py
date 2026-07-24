@@ -1,13 +1,12 @@
-"""Extrai a pose real do vídeo de cada paciente para ``pose_frames.csv``.
+"""Extrai a pose real do vídeo de cada paciente para dentro de ``data/patients.json``.
 
-Para cada pasta de paciente que contenha ``video_teste.mp4``, roda a análise
-postural (MediaPipe Pose) sobre o vídeo real e sobrescreve o ``pose_frames.csv``
-com os sinais extraídos. Assim, a análise da coorte usa a pose do vídeo de
+Para cada paciente que tenha um vídeo em ``data/patients_media/<ID>.mp4``, roda a
+análise postural (MediaPipe Pose) sobre o vídeo real e **substitui** os sinais de
+pose do paciente no arquivo da coorte. Assim, a análise usa a pose do vídeo de
 verdade — mas em memória (rápido e confiável), sem executar a análise pesada
 dentro do servidor web.
 
-Rode este script sempre que adicionar/trocar o ``video_teste.mp4`` de um
-paciente.
+Rode este script sempre que adicionar/trocar o vídeo de um paciente.
 
 Uso:
     python scripts/extract_patient_pose.py
@@ -15,21 +14,20 @@ Uso:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
-
-import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from multimodal_monitor.video_analysis.pose_analyzer import PoseAnalyzer  # noqa: E402
 
-PATIENTS = Path("data/patients")
-VIDEO_NAME = "video_teste.mp4"
+COHORT_FILE = Path("data/patients.json")
+MEDIA_DIR = Path("data/patients_media")
 
 
 def main() -> None:
-    if not PATIENTS.exists():
+    if not COHORT_FILE.exists():
         print("Coorte não encontrada. Rode antes: python scripts/generate_patient_cohort.py")
         return
 
@@ -41,25 +39,39 @@ def main() -> None:
         )
         return
 
+    cohort = json.loads(COHORT_FILE.read_text(encoding="utf-8"))
     found = 0
-    for pdir in sorted(PATIENTS.glob("PAC-*")):
-        video = pdir / VIDEO_NAME
+
+    for patient in cohort.get("patients", []):
+        video = MEDIA_DIR / f"{patient['id']}.mp4"
         if not video.exists():
             continue
         found += 1
-        print(f"  {pdir.name}: extraindo pose de {VIDEO_NAME}…", flush=True)
+        print(f"  {patient['id']}: extraindo pose de {video.name}…", flush=True)
         frames = analyzer.analyze_video(video)
-        pd.DataFrame([f.__dict__ for f in frames]).to_csv(pdir / "pose_frames.csv", index=False)
-        print(f"    {len(frames)} quadros -> pose_frames.csv")
+        patient["pose_frames"] = {
+            "frame_index": [f.frame_index for f in frames],
+            "timestamp_s": [round(f.timestamp_s, 3) for f in frames],
+            "movement_index": [round(f.movement_index, 4) for f in frames],
+            "trunk_angle": [
+                None if f.trunk_angle is None else round(f.trunk_angle, 2) for f in frames
+            ],
+        }
+        patient["pose_source"] = "video"
+        print(f"    {len(frames)} quadros -> pose real gravada na coorte")
 
     if found == 0:
         print(
-            "Nenhum paciente com video_teste.mp4 na pasta. Para ativar o vídeo "
-            "real de um paciente, copie data/samples/video_teste.mp4 para a "
-            "pasta dele (ex.: data/patients/PAC-001/)."
+            f"Nenhum paciente com vídeo em {MEDIA_DIR}/. Para ativar o vídeo real "
+            "de um paciente, copie um .mp4 para lá com o nome do ID "
+            "(ex.: data/patients_media/PAC-001.mp4)."
         )
-    else:
-        print(f"Concluído: pose real extraída para {found} paciente(s).")
+        return
+
+    COHORT_FILE.write_text(
+        json.dumps(cohort, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+    print(f"Concluído: pose real extraída para {found} paciente(s).")
 
 
 if __name__ == "__main__":

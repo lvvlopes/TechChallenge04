@@ -1,7 +1,0 @@
-timestamp,drug,dose_mg,action
-2026-07-21 14:38:29.751989+00:00,paracetamol,750.0,prescribe
-2026-07-21 16:38:29.751989+00:00,amoxicilina,500.0,prescribe
-2026-07-21 18:38:29.751989+00:00,dipirona,1000.0,prescribe
-2026-07-21 20:38:29.751989+00:00,dipirona,3000.0,prescribe
-2026-07-21 21:08:29.751989+00:00,warfarina,5.0,prescribe
-2026-07-21 21:38:29.751989+00:00,ibuprofeno,600.0,prescribe

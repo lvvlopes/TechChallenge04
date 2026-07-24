@@ -25,7 +25,8 @@ htmlcov/
 # Dados e mídia de amostra não são necessários em runtime — exceto a coorte
 # sintética, que a página /patients lê em runtime (ver COPY no Dockerfile).
 data/*
-!data/patients
+!data/patients.json
+!data/patients_media
 notebooks/
 tests/
 docs/

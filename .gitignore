@@ -49,9 +49,9 @@ htmlcov/
 !data/samples/video_teste.mp4
 # áudios da coorte: gerados por SAPI (Windows-only) via TTS — versionados
 # para que graders em qualquer SO tenham o dataset completo e reprodutível.
-!data/patients/**/*.wav
-# vídeo por paciente NÃO é versionado (20 MB/arquivo, opt-in):
-# copie data/samples/video_teste.mp4 para a pasta do paciente para ativar.
+!data/patients_media/*.wav
+# vídeo por paciente NÃO é versionado (opt-in, arquivos grandes): copie um
+# .mp4 para data/patients_media/<ID>.mp4 e rode scripts/extract_patient_pose.py
 
 # Generated artifacts / outputs
 outputs/
