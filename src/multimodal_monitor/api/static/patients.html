@@ -200,8 +200,10 @@ async function analyze(){
 
 function renderResult(rep){
   const p=rep.patient||{}; const score=rep.risk_score||0; const sev=rep.alert?rep.alert.severity:sevFromScore(score);
+  const healthy=!rep.alert && score<0.15;
   const mods=Object.entries(rep.modalities||{}).sort((a,b)=>b[1].risk_score-a[1].risk_score);
-  const modsHtml=mods.map(([m,d])=>{const s=sevFromScore(d.risk_score);return `<div class="modrow"><div>${MODLABEL[m]||m} <span style="color:var(--text-3);font-size:11.5px;">· ${d.findings.length}</span></div><div style="display:flex;align-items:center;gap:10px;"><div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.risk_score*100)}%;background:${SEVCOLOR[s]};"></div></div><b style="font-variant-numeric:tabular-nums;min-width:32px;text-align:right;font-size:12.5px;">${d.risk_score.toFixed(2)}</b></div></div>`;}).join('');
+  // resumo compacto do que cada modalidade analisou (prova de processamento)
+  const modsHtml=mods.map(([m,d])=>{const s=sevFromScore(d.risk_score);const ok=d.findings.length===0;return `<div class="modrow"><div style="min-width:0;"><div>${MODLABEL[m]||m} <span style="color:${ok?'#059669':'var(--text-3)'};font-size:11.5px;">· ${ok?'sem anomalias':d.findings.length+' achado(s)'}</span></div><div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px;">${esc(d.summary||'')}</div></div><div style="display:flex;align-items:center;gap:10px;flex-shrink:0;"><div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.risk_score*100)}%;background:${SEVCOLOR[s]};"></div></div><b style="font-variant-numeric:tabular-nums;min-width:32px;text-align:right;font-size:12.5px;">${d.risk_score.toFixed(2)}</b></div></div>`;}).join('');
 
   const findings=[];Object.entries(rep.modalities||{}).forEach(([m,d])=>d.findings.forEach(f=>findings.push({...f,_m:m})));
   const order=['critical','high','medium','low','info'];
@@ -214,13 +216,15 @@ function renderResult(rep){
 
   const videoBlock=rep.has_video_file?`<div class="rsec"><h4>Vídeo do paciente (análise real)</h4><video controls playsinline style="width:100%;border-radius:8px;background:#000;max-height:280px;" src="/api/patients/${encodeURIComponent(rep.patient_id)}/video"></video><div style="margin-top:6px;font-size:11.5px;color:var(--text-3);">Analisado com MediaPipe Pose + YOLOv8.</div></div>`:'';
 
-  const alertBlock=rep.alert?`<div class="rsec"><h4>Alerta clínico</h4><div style="font-weight:600;font-size:14px;">${esc(rep.alert.title)}</div><div style="margin-top:6px;color:var(--text-2);font-size:12.5px;">${esc(rep.alert.message)}</div>${(rep.alert.hypotheses&&rep.alert.hypotheses.length)?`<div class="hyp"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);">Hipóteses · apoio à decisão</div><ul>${rep.alert.hypotheses.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><div style="margin-top:6px;font-size:10.5px;color:var(--text-3);font-style:italic;">Não substituem avaliação médica.</div></div>`:''}</div>`:`<div class="rsec" style="background:var(--panel-2);"><div style="font-size:13px;color:var(--text-2);">Sem alerta — paciente dentro dos padrões esperados.</div></div>`;
+  const analisadas=mods.map(([m])=>MODLABEL[m]||m).join(', ');
+  const sentiment=(rep.modalities&&rep.modalities.audio&&rep.modalities.audio.metadata)?rep.modalities.audio.metadata.sentiment:null;
+  const alertBlock=rep.alert?`<div class="rsec"><h4>Alerta clínico</h4><div style="font-weight:600;font-size:14px;">${esc(rep.alert.title)}</div><div style="margin-top:6px;color:var(--text-2);font-size:12.5px;">${esc(rep.alert.message)}</div>${(rep.alert.hypotheses&&rep.alert.hypotheses.length)?`<div class="hyp"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);">Hipóteses · apoio à decisão</div><ul>${rep.alert.hypotheses.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><div style="margin-top:6px;font-size:10.5px;color:var(--text-3);font-style:italic;">Não substituem avaliação médica.</div></div>`:''}</div>`:`<div class="rsec" style="background:linear-gradient(135deg,#f0fdf4,var(--panel));border-color:#bbf7d0;"><div style="display:flex;align-items:center;gap:10px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div style="font-weight:600;font-size:14px;color:#065f46;">Paciente estável — sem anomalias</div></div><div style="margin-top:8px;color:var(--text-2);font-size:12.5px;">Todas as modalidades foram analisadas (${esc(analisadas)}) e nenhum sinal de risco foi detectado.${sentiment?` Sentimento da fala: <strong>${esc(sentiment)}</strong>.`:''}</div></div>`;
 
   $('#result').innerHTML=`
     <div class="score-hero sev-${sev}">
       <div class="score-value">${score.toFixed(2)}</div>
       <div class="score-label">Score de risco multimodal</div>
-      <div><span class="sev-badge sev-${sev}">${SEVLABEL[sev]||sev}</span></div>
+      <div><span class="sev-badge ${healthy?'sev-low':'sev-'+sev}" style="${healthy?'color:#059669;background:#d1fae5;':''}">${healthy?'estável':(SEVLABEL[sev]||sev)}</span></div>
     </div>
     <div class="rsec"><h4>Paciente</h4><dl class="kv">
       <dt>Nome</dt><dd>${esc(p.name||'')}</dd>
